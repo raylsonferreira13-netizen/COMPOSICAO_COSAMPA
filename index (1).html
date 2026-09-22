@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Composições - COSAMPA</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --preto:#111111;
+  --preto-2:#1c1c1c;
+  --cinza-escuro:#4d4d4d;
+  --cinza:#7a7a7a;
+  --cinza-claro:#e9e9e9;
+  --cinza-claro-2:#f4f4f4;
+  --branco:#ffffff;
+  --laranja:#f4791f;
+  --laranja-escuro:#d8630f;
+  --laranja-claro:#fff1e2;
+  --laranja-claro-2:#fff8f0;
+  --font: "Aptos","Aptos Narrow","Calibri","Segoe UI",Arial,sans-serif;
+  --radius:8px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--cinza-claro-2);font-family:var(--font);color:var(--preto);}
+img{max-width:100%;}
+button{font-family:var(--font);cursor:pointer;}
+input,select{font-family:var(--font);}
+
+/* ---------- HEADER ---------- */
+header.app-header{
+  background:var(--preto);
+  color:var(--branco);
+  display:flex;align-items:center;gap:16px;
+  padding:12px 20px;
+  border-bottom:4px solid var(--laranja);
+  flex-wrap:wrap;
+}
+.logo-wrap{display:flex;align-items:center;gap:10px;}
+.logo-mark{
+  width:44px;height:44px;border-radius:6px;
+  background:linear-gradient(135deg,var(--laranja),var(--laranja-escuro));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;color:var(--preto);font-size:14px;letter-spacing:0.5px;
+  flex-shrink:0;
+}
+.brand-title{font-size:18px;font-weight:700;letter-spacing:0.5px;}
+.brand-sub{font-size:11px;color:#cfcfcf;}
+.header-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
+.btn{
+  border:1px solid var(--laranja);
+  background:transparent;color:var(--branco);
+  padding:8px 12px;border-radius:6px;font-size:12.5px;font-weight:600;
+  display:inline-flex;align-items:center;gap:6px;
+  transition:background .15s;
+}
+.btn:hover{background:rgba(244,121,31,0.18);}
+.btn.solid{background:var(--laranja);color:var(--preto);border-color:var(--laranja);}
+.btn.solid:hover{background:var(--laranja-escuro);color:var(--branco);}
+.btn.small{padding:5px 9px;font-size:11.5px;}
+.btn.ghost-dark{border-color:#555;color:#ddd;}
+.btn.ghost-dark:hover{background:#2a2a2a;}
+
+/* ---------- TABS ---------- */
+nav.tabs{
+  display:flex;gap:2px;background:var(--preto-2);padding:0 20px;
+}
+nav.tabs button{
+  background:transparent;border:none;color:#bbb;padding:12px 18px;
+  font-size:13.5px;font-weight:600;border-bottom:3px solid transparent;
+}
+nav.tabs button.active{color:var(--branco);border-bottom-color:var(--laranja);}
+nav.tabs button:hover{color:var(--branco);}
+
+/* ---------- FILTERS ---------- */
+.filters-bar{
+  background:var(--branco);
+  margin:16px 20px 0 20px;
+  padding:14px 16px;
+  border-radius:var(--radius);
+  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+  display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;
+}
+.filter-group{display:flex;flex-direction:column;gap:4px;min-width:150px;}
+.filter-group > label{font-size:11px;font-weight:700;color:var(--cinza-escuro);text-transform:uppercase;letter-spacing:.03em;}
+.filter-group select, .filter-group input[type=text]{
+  padding:7px 9px;border:1px solid #d5d5d5;border-radius:6px;font-size:13px;background:var(--branco);
+}
+.filter-group input[type=text]:focus, .filter-group select:focus{outline:2px solid var(--laranja);outline-offset:0;}
+.multiselect{position:relative;min-width:220px;}
+.multiselect-btn{
+  width:100%;text-align:left;padding:7px 9px;border:1px solid #d5d5d5;border-radius:6px;
+  background:var(--branco);font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:6px;
+}
+.ms-count{background:var(--laranja);color:var(--preto);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;}
+.multiselect-panel{
+  display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:40;
+  background:var(--branco);border:1px solid #d5d5d5;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.15);
+  width:290px;max-height:320px;overflow:auto;padding:8px;
+}
+.multiselect-panel.open{display:block;}
+.multiselect-panel input[type=text]{width:100%;margin-bottom:6px;padding:6px 8px;border:1px solid #ddd;border-radius:5px;font-size:12.5px;}
+.ms-actions{display:flex;gap:6px;margin-bottom:6px;}
+.ms-actions button{font-size:11px;padding:3px 7px;border:1px solid #ccc;background:#fafafa;border-radius:5px;}
+.ms-option{display:flex;align-items:center;gap:7px;padding:4px 3px;font-size:12.5px;border-radius:4px;}
+.ms-option:hover{background:var(--laranja-claro);}
+.filters-bar .spacer{flex:1;}
+.filter-tools{display:flex;gap:8px;flex-wrap:wrap;}
+.btn-outline{border:1px solid var(--cinza);background:var(--branco);color:var(--preto);padding:7px 11px;border-radius:6px;font-size:12.5px;font-weight:600;}
+.btn-outline:hover{border-color:var(--laranja);color:var(--laranja-escuro);}
+.btn-orange{border:1px solid var(--laranja);background:var(--laranja);color:var(--preto);padding:7px 11px;border-radius:6px;font-size:12.5px;font-weight:700;}
+.btn-orange:hover{background:var(--laranja-escuro);color:var(--branco);}
+#fileInputExcel{display:none;}
+
+/* ---------- CARDS ---------- */
+.import-notice{
+  margin:14px 20px 0 20px;background:var(--laranja-claro-2);border:1px solid var(--laranja-claro);
+  border-left:4px solid var(--laranja);border-radius:6px;padding:10px 14px;font-size:12.5px;color:#5b3410;
+}
+.import-notice-head{display:flex;align-items:center;gap:10px;font-weight:700;}
+.notice-close{margin-left:auto;background:none;border:none;font-size:16px;line-height:1;color:#5b3410;padding:0 4px;}
+.import-notice-warnings{margin-top:6px;display:flex;flex-direction:column;gap:2px;font-weight:500;}
+.cards-row{display:flex;gap:12px;margin:14px 20px 0 20px;flex-wrap:wrap;}
+.kpi-card{
+  background:var(--branco);border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:10px 16px;display:flex;align-items:center;gap:12px;
+  min-width:230px;max-width:340px;border-left:4px solid var(--laranja);
+}
+.kpi-icon{
+  width:36px;height:36px;border-radius:50%;background:var(--laranja-claro);
+  display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;
+}
+.kpi-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--cinza-escuro);font-weight:700;}
+.kpi-value{font-size:17px;font-weight:800;color:var(--preto);line-height:1.25;}
+.kpi-value small{font-size:11px;font-weight:600;color:var(--cinza);}
+.kpi-multi{font-size:10.5px;color:var(--cinza-escuro);margin-top:2px;}
+
+/* ---------- PANELS ---------- */
+.panel{margin:16px 20px 30px 20px;}
+.panel-card{background:var(--branco);border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px;}
+.tree-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
+.tree-toolbar h2{font-size:15px;margin:0;color:var(--preto);}
+
+/* ---------- TREE ---------- */
+.tree{border:1px solid #eee;border-radius:6px;overflow:hidden;}
+.node-obra{
+  background:var(--preto);color:var(--branco);
+  padding:9px 12px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;
+  border-left:5px solid var(--laranja);
+}
+.node-atividade{
+  background:var(--cinza-escuro);color:var(--branco);
+  padding:8px 12px 8px 28px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;
+  border-top:1px solid rgba(255,255,255,0.08);
+}
+.node-atividade.leaf{cursor:default;}
+.node-subatividade{
+  background:var(--laranja-claro-2);color:#5b3410;
+  padding:7px 12px 7px 46px;display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;
+  border-top:1px solid var(--laranja-claro);
+  border-left:3px solid var(--laranja);
+}
+.sp-badge{background:var(--laranja);color:var(--preto);font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:8px;letter-spacing:.03em;}
+.node-tipo{
+  background:var(--cinza-claro);color:var(--cinza-escuro);
+  padding:5px 12px 5px 62px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+}
+.node-tipo.indent-sub{padding-left:78px;}
+.node-recurso{
+  display:grid;grid-template-columns:1fr 70px 90px 110px;gap:8px;
+  padding:6px 12px 6px 76px;font-size:12.5px;align-items:center;border-top:1px dashed transparent;
+}
+.node-recurso.indent-sub{padding-left:92px;}
+.node-recurso:nth-child(even){background:#fbfbfb;}
+.recurso-desc{word-break:break-word;}
+.recurso-num{text-align:center;color:var(--cinza-escuro);}
+.type-sep{border-top:1px dashed rgba(0,0,0,0.35);margin:2px 0;}
+.activity-sep{border-top:2px solid var(--laranja);}
+.toggle-btn{
+  width:18px;height:18px;border-radius:4px;background:rgba(255,255,255,0.15);color:inherit;border:none;
+  display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;
+}
+.node-subatividade .toggle-btn{background:rgba(0,0,0,0.08);}
+.indicators-inline{margin-left:auto;display:flex;gap:14px;font-size:11.5px;font-weight:600;opacity:.95;align-items:center;}
+.horas-input{
+  width:54px;padding:2px 5px;border-radius:4px;border:1px solid rgba(255,255,255,0.35);
+  background:rgba(255,255,255,0.12);color:inherit;font:inherit;font-weight:700;text-align:center;
+}
+.node-subatividade .horas-input{border-color:rgba(0,0,0,0.25);background:rgba(255,255,255,0.6);}
+.horas-input:focus{outline:2px solid var(--laranja);background:#fff;color:var(--preto);}
+.horas-input.horas-editada{border:2px solid var(--laranja);background:#fff;color:var(--preto);font-weight:800;}
+.restaurar-horas-btn{
+  margin-left:4px;border:none;background:none;color:inherit;cursor:pointer;font-size:13px;
+  padding:0 3px;opacity:.85;
+}
+.restaurar-horas-btn:hover{opacity:1;transform:scale(1.15);}
+.sp-badge-warn{background:#ffcf5c;color:#5b3410;}
+.sub-search-row{
+  display:flex;align-items:center;gap:8px;padding:6px 12px 6px 46px;
+  background:rgba(0,0,0,0.03);border-bottom:1px solid rgba(0,0,0,0.06);
+}
+.sub-search-input{
+  flex:1;max-width:280px;padding:5px 9px;border:1px solid #ddd;border-radius:5px;
+  font:inherit;font-size:12px;background:#fff;
+}
+.sub-search-input:focus{outline:none;border-color:var(--laranja);box-shadow:0 0 0 2px rgba(244,121,31,0.2);}
+.sub-search-count{font-size:11px;color:var(--cinza-escuro);white-space:nowrap;}
+.hidden{display:none !important;}
+.tree-header-row{
+  display:grid;grid-template-columns:1fr 70px 90px 110px;gap:8px;
+  padding:6px 12px 6px 76px;font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--cinza-escuro);
+  background:var(--cinza-claro);letter-spacing:.03em;
+}
+
+/* ---------- TABLE ---------- */
+table.comp-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:18px;}
+table.comp-table caption{text-align:left;font-size:14px;font-weight:700;margin-bottom:8px;}
+table.comp-table th{background:var(--preto);color:var(--branco);padding:8px 6px;text-align:center;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(0,0,0,0.4);}
+table.comp-table td{padding:6px 6px;text-align:center;border-bottom:1px solid #eee;word-break:break-word;}
+table.comp-table td.left{text-align:left;}
+table.comp-table tr:nth-child(even){background:#fafafa;}
+.table-scroll{max-height:520px;overflow:auto;border:1px solid #eee;border-radius:6px;}
+
+/* ---------- CHARTS ---------- */
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;}
+.chart-box{background:var(--branco);border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px;}
+.chart-box h3{font-size:13.5px;margin:0 0 10px 0;color:var(--preto);}
+.chart-box canvas{max-height:340px;}
+
+/* ---------- COST TAB ---------- */
+.cost-summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.cost-summary .kpi-card{border-left-color:var(--preto);}
+
+footer.app-footer{text-align:center;color:var(--cinza);font-size:11px;padding:16px;}
+
+@media (max-width:760px){
+  header.app-header{padding:10px 12px;}
+  .filters-bar{margin:12px 10px 0 10px;padding:12px;}
+  .cards-row{margin:12px 10px 0 10px;}
+  .panel{margin:12px 10px 24px 10px;}
+  .node-recurso, .tree-header-row{grid-template-columns:1fr 55px 70px 85px;padding-left:20px;}
+  .node-atividade{padding-left:16px;}
+  .node-subatividade{padding-left:26px;}
+  .node-tipo{padding-left:30px;}
+  .node-tipo.indent-sub{padding-left:38px;}
+  .node-recurso.indent-sub{padding-left:34px;}
+  .indicators-inline{gap:8px;font-size:10.5px;}
+  .kpi-card{min-width:150px;}
+}
+@media print{
+  header .header-actions, nav.tabs, .filters-bar, .tree-toolbar button{display:none !important;}
+}
+.modo-canteiro-bar{
+  display:flex;align-items:center;gap:12px;background:var(--preto);color:#fff;
+  padding:8px 20px;font-size:12.5px;font-weight:600;
+}
+.modo-canteiro-bar .btn{padding:5px 12px;font-size:12px;}
+body.modo-canteiro .import-notice,
+body.modo-canteiro .cards-row,
+body.modo-canteiro nav.tabs,
+body.modo-canteiro .filters-bar,
+body.modo-canteiro header.app-header,
+body.modo-canteiro .tree-toolbar,
+body.modo-canteiro .indicators-legend,
+body.modo-canteiro .tree-header-row,
+body.modo-canteiro .node-tipo,
+body.modo-canteiro .node-recurso,
+body.modo-canteiro .sub-search-row,
+body.modo-canteiro .panel[data-panel="tabela"],
+body.modo-canteiro .panel[data-panel="graficos"],
+body.modo-canteiro .panel[data-panel="custos"]{
+  display:none !important;
+}
+body.modo-canteiro .panel[data-panel="composicao"]{display:block !important;margin:0;}
+body.modo-canteiro .node-atividade, body.modo-canteiro .node-subatividade{cursor:default;}
+body.modo-canteiro .horas-input{pointer-events:none;background:transparent;border-color:transparent;font-weight:700;}
+body.modo-canteiro .restaurar-horas-btn, body.modo-canteiro .sp-badge-warn{display:none !important;}
+body.modo-canteiro .app-shell, body.modo-canteiro main{padding:0;}
+@media print{
+  body.modo-canteiro .modo-canteiro-bar{display:none !important;}
+  body.modo-canteiro{background:#fff;}
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo-wrap">
+    <div class="logo-mark">COSA<br>MPA</div>
+    <div>
+      <div class="brand-title">COSAMPA</div>
+      <div class="brand-sub">Dashboard de Composições</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn solid" id="btnImportExcel">⇪ Importar Excel</button>
+    <input type="file" id="fileInputExcel" accept=".xlsx,.xls,.csv">
+    <button class="btn solid" id="btnAtualizarPlanilha" title="Recarrega a planilha padrão do Google Sheets configurada no app">🔄 Atualizar Planilha</button>
+    <button class="btn" id="btnGoogleSheets" title="Importar de outro link do Google Sheets">⟳ Outra Planilha</button>
+    <button class="btn ghost-dark" id="btnExportExcel">⬇ Excel</button>
+    <button class="btn ghost-dark" id="btnExportPdf">⬇ PDF</button>
+    <button class="btn ghost-dark" id="btnModoCanteiro" title="Visualização simplificada para impressão em campo">🖨 Modo Canteiro</button>
+  </div>
+</header>
+<div class="modo-canteiro-bar hidden" id="modoCanteiroBar">
+  <span>📋 Modo Canteiro ativo — visualização simplificada para impressão.</span>
+  <button class="btn solid" id="btnImprimirCanteiro">🖨 Imprimir</button>
+  <button class="btn ghost-dark" id="btnSairModoCanteiro">✕ Sair</button>
+</div>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="composicao">Composição</button>
+  <button class="tab-btn" data-tab="tabela">Tabela de Composição</button>
+  <button class="tab-btn" data-tab="graficos">Gráficos</button>
+  <button class="tab-btn" data-tab="custos">Análise de Custos</button>
+</nav>
+
+<section class="filters-bar">
+  <div class="filter-group">
+    <label>Obra</label>
+    <select id="filtroObra"><option value="">Todas</option></select>
+  </div>
+
+  <div class="filter-group multiselect" id="msAtividade">
+    <label>Atividade</label>
+    <button type="button" class="multiselect-btn" id="msAtividadeBtn">
+      <span id="msAtividadeLabel">Todas as atividades</span>
+      <span class="ms-count hidden" id="msAtividadeCount">0</span>
+    </button>
+    <div class="multiselect-panel" id="msAtividadePanel">
+      <input type="text" id="msAtividadeSearch" placeholder="Pesquisar atividade...">
+      <div class="ms-actions">
+        <button type="button" id="msSelAll">Selecionar todas</button>
+        <button type="button" id="msSelNone">Limpar</button>
+      </div>
+      <div id="msAtividadeOptions"></div>
+    </div>
+  </div>
+
+  <div class="filter-group multiselect" id="msSubatividade">
+    <label>Subatividade</label>
+    <button type="button" class="multiselect-btn" id="msSubatividadeBtn">
+      <span id="msSubatividadeLabel">Todas as subatividades</span>
+      <span class="ms-count hidden" id="msSubatividadeCount">0</span>
+    </button>
+    <div class="multiselect-panel" id="msSubatividadePanel">
+      <input type="text" id="msSubatividadeSearch" placeholder="Pesquisar subatividade...">
+      <div class="ms-actions">
+        <button type="button" id="msSubSelAll">Selecionar todas</button>
+        <button type="button" id="msSubSelNone">Limpar</button>
+      </div>
+      <div id="msSubatividadeOptions"></div>
+    </div>
+  </div>
+
+  <div class="filter-group" style="min-width:220px;">
+    <label>Buscar recurso / material / equipamento</label>
+    <input type="text" id="filtroBusca" placeholder="Digite para buscar...">
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="filter-tools">
+    <button class="btn-outline" id="btnExpandAll">Expandir tudo</button>
+    <button class="btn-outline" id="btnCollapseAll">Recolher tudo</button>
+    <button class="btn-outline" id="btnRestaurarHoras" title="Desfaz todas as edições de horas feitas neste navegador">↺ Restaurar horas originais</button>
+  </div>
+</section>
+
+<div class="import-notice hidden" id="importNotice"></div>
+
+<section class="cards-row" id="cardsRow"></section>
+
+<!-- COMPOSIÇÃO -->
+<div class="panel tab-panel" data-panel="composicao">
+  <div class="panel-card">
+    <div class="tree-toolbar">
+      <h2>Árvore de composição</h2>
+      <span id="resumoFiltro" style="font-size:11.5px;color:var(--cinza-escuro);"></span>
+    </div>
+    <div class="tree-header-row">
+      <span style="text-align:left;">Descrição</span><span>Unid.</span><span>Qtd.</span><span>Consumo/Und</span>
+    </div>
+    <div class="tree" id="treeRoot"></div>
+  </div>
+</div>
+
+<!-- TABELA DE COMPOSIÇÃO -->
+<div class="panel tab-panel hidden" data-panel="tabela">
+  <div class="panel-card">
+    <div class="tree-toolbar">
+      <h2>Tabela de composição (todos os recursos)</h2>
+      <span id="resumoFiltroTabela" style="font-size:11.5px;color:var(--cinza-escuro);"></span>
+    </div>
+    <div class="table-scroll">
+      <table class="comp-table" id="compTable">
+        <thead>
+          <tr>
+            <th>Obra</th><th>Atividade</th><th>Subatividade</th><th>Produção calculada</th>
+            <th>Descrição do recurso</th><th>Tipo</th><th>Unidade</th><th>Quantidade</th><th>Consumo/Und</th>
+          </tr>
+        </thead>
+        <tbody id="compTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- GRÁFICOS -->
+<div class="panel tab-panel hidden" data-panel="graficos">
+  <div class="chart-grid">
+    <div class="chart-box"><h3>Produção calculada por atividade/subatividade</h3><canvas id="chartProducao"></canvas></div>
+    <div class="chart-box"><h3>Produção por hora (comparativo)</h3><canvas id="chartHora"></canvas></div>
+    <div class="chart-box"><h3>Quantidade de recursos por tipo</h3><canvas id="chartTipo"></canvas></div>
+    <div class="chart-box"><h3>Horas trabalhadas por atividade</h3><canvas id="chartHoras"></canvas></div>
+  </div>
+</div>
+
+<!-- CUSTOS -->
+<div class="panel tab-panel hidden" data-panel="custos">
+  <div class="panel-card">
+    <h2 style="font-size:15px;margin-top:0;">Análise de custos</h2>
+    <div class="cost-summary" id="costCards"></div>
+    <div class="chart-grid">
+      <div class="chart-box"><h3>Custo total por atividade/subatividade</h3><canvas id="chartCustoAtiv"></canvas></div>
+      <div class="chart-box"><h3>Custo por tipo de recurso</h3><canvas id="chartCustoTipo"></canvas></div>
+    </div>
+    <h3 style="font-size:13.5px;margin:18px 0 8px;">Detalhamento de custos</h3>
+    <div class="table-scroll">
+      <table class="comp-table">
+        <thead><tr><th>Obra</th><th>Atividade</th><th>Subatividade</th><th>Descrição</th><th>Tipo</th><th>Qtd.</th><th>Consumo/Und</th><th>Preço unit.</th><th>Custo unit.</th><th>Custo total</th></tr></thead>
+        <tbody id="costTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<footer class="app-footer">COSAMPA &mdash; Dashboard de Composições. Gerado para publicação (index.html).</footer>
+
+<script>
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+function normalize(s){
+  if(s===undefined||s===null) return "";
+  return String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").trim().toLowerCase();
+}
+function isNum(v){ return v!==undefined && v!==null && v!=="" && !isNaN(parseFloat(String(v).replace(",","."))); }
+function toNum(v){
+  if(v===undefined||v===null||v==="") return null;
+  if(typeof v === "number") return v;
+  var s = String(v).trim().replace(/\./g,"").replace(",",".");
+  // fallback if it was already a normal decimal with dot and no thousand sep
+  if(isNaN(parseFloat(s))){ s = String(v).trim().replace(",", "."); }
+  var n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function fmt(n, dec){
+  if(n===null||n===undefined||isNaN(n)) return "-";
+  dec = dec===undefined?2:dec;
+  return n.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+function uid(){ return 'n'+Math.random().toString(36).slice(2,10); }
+
+/* ============================================================
+   MAPEAMENTO DE COLUNAS RECONHECIDAS
+   ============================================================ */
+var COLS_BLOCO = {
+  obra: ['obra'],
+  atividade: ['atividade'],
+  unidade: ['unidade','und','unidade composicao','unidade da composicao'],
+  horas: ['horas trab','horas trab.','horas trabalhadas','horas','jornada','jornada de trabalho'],
+  producaoHora: ['producao hora','producao por hora','produtividade hora','produtividade por hora','kpi hora','kpi/h','kpi h','kpih'],
+  kpiDiaLegado: ['kpi dia','kpi diario','kpi/dia','producao dia','producao diaria','kpi d'],
+  coeficiente: ['coeficiente','coef','coef.','fator de conversao','fator']
+};
+var COLS_RECURSO = {
+  codigo: ['codigo','código','cod'],
+  descricao: ['descricao','descricao do recurso','descricao/recurso'],
+  unidadeRecurso: ['unidade','und'],
+  qtd: ['qtd','qtd.','quantidade'],
+  consumoUnd: ['consumo/und','consumo und','consumo por unidade','consumo'],
+  precoUnitario: ['preco unitario','preço unitário','valor unitario','preco unit','preco unit.'],
+  custoUnitario: ['custo unitario','custo unit','custo unit.']
+};
+var GRUPOS = {
+  'mao de obra':'Mão de Obra','maodeobra':'Mão de Obra',
+  'equipamento':'Equipamentos','equipamentos':'Equipamentos',
+  'material':'Materiais','materiais':'Materiais','insumos':'Materiais','insumo':'Materiais',
+  'servico':'Serviços','servicos':'Serviços','serviço':'Serviços'
+};
+var ORDEM_TIPO = {'Mão de Obra':0,'Equipamentos':1,'Materiais':2,'Serviços':3};
+
+function matchCol(cell, list){
+  var n = normalize(cell).replace(/\./g,'');
+  for(var i=0;i<list.length;i++){
+    if(n === list[i].replace(/\./g,'')) return true;
+  }
+  return false;
+}
+function buildColMap(row, dict){
+  var map = {}, found = 0;
+  row.forEach(function(cell, idx){
+    Object.keys(dict).forEach(function(key){
+      if(map[key]===undefined && matchCol(cell, dict[key])){ map[key]=idx; found++; }
+    });
+  });
+  return {map:map, found:found};
+}
+function isBlocoHeaderRow(row){
+  var r = buildColMap(row, COLS_BLOCO);
+  return r.map.obra!==undefined && r.map.atividade!==undefined ? r : null;
+}
+function isRecursoHeaderRow(row){
+  var r = buildColMap(row, COLS_RECURSO);
+  return (r.map.descricao!==undefined && (r.map.unidadeRecurso!==undefined || r.map.qtd!==undefined)) ? r : null;
+}
+function isGroupMarkerRow(row){
+  for(var i=0;i<row.length;i++){
+    var n = normalize(row[i]);
+    if(n && GRUPOS[n.replace(/\s+/g,' ')]) return GRUPOS[n.replace(/\s+/g,' ')];
+  }
+  return null;
+}
+function rowIsEmpty(row){
+  return !row || row.every(function(c){ return c===undefined||c===null||String(c).trim()===""; });
+}
+
+/* ============================================================
+   PARSER PRINCIPAL: matriz de linhas -> arvore de dados
+
+   Regra observada na planilha real da COSAMPA:
+   - Uma linha de cabeçalho "Obra | Atividade | UNIDADE | KPI HORA | Horas trab. (| Coeficiente)"
+     inicia um novo BLOCO.
+   - A primeira linha de dados após esse cabeçalho é sempre a ATIVIDADE (pai).
+   - Qualquer linha de dados seguinte, antes do próximo cabeçalho de bloco, é uma
+     SUBATIVIDADE dessa mesma atividade — independentemente do texto usado na 1ª
+     coluna ("SP" é o padrão, mas a planilha real também traz linhas onde o nome
+     da obra foi repetido por engano no lugar de "SP"; tratamos as duas formas
+     da mesma maneira, pela POSIÇÃO da linha dentro do bloco, não pelo rótulo).
+   - Linhas com a 1ª coluna vazia são marcador de grupo (Mão de Obra / Equipamento(s)
+     / Materiais / Serviços) ou recurso, conforme a coluna "Descrição".
+   ============================================================ */
+function parseSheetRows(rows){
+  var obras = {}; // obraNome -> {nome, atividades:[]}
+  var obrasOrdem = [];
+  var colBloco = null, colRecurso = null;
+  var curObraNome = null, curAtividade = null, curSubatividade = null, curGrupo = null;
+  var novoBlocoPendente = false; // true logo após uma linha de cabeçalho de bloco
+  var stats = { atividades:0, subatividades:0, recursos:0, marcadoresAmbiguos:0, leafsSemRecurso:0 };
+
+  function migrarParaSubatividade(atividade){
+    // Converte uma atividade "simples" (com indicadores/recursos próprios) em
+    // agrupadora, movendo o que ela já tinha para sua 1ª subatividade.
+    if(atividade.temSub) return;
+    if(atividade.producaoCalculada!==null || atividade.resources.length>0){
+      atividade.subatividades.push({
+        id: uid(), nome: atividade.nome, unidade: atividade.unidade,
+        horas: atividade.horas, horasOriginal: atividade.horas, producaoPorHora: atividade.producaoPorHora,
+        producaoCalculada: atividade.producaoCalculada, coeficiente: atividade.coeficiente,
+        chave: atividade.chave + '|' + atividade.nome, marcadorAmbiguo:false,
+        resources: atividade.resources
+      });
+    }
+    atividade.temSub = true;
+    atividade.producaoPorHora = null; atividade.horas = null; atividade.producaoCalculada = null; atividade.coeficiente = null;
+    atividade.resources = [];
+  }
+
+  rows.forEach(function(row){
+    if(rowIsEmpty(row)) return;
+
+    var blocoHeader = isBlocoHeaderRow(row);
+    if(blocoHeader){ colBloco = blocoHeader.map; novoBlocoPendente = true; curSubatividade = null; return; }
+
+    var recursoHeader = isRecursoHeaderRow(row);
+    if(recursoHeader){ colRecurso = recursoHeader.map; return; }
+
+    var col0Preenchida = row[0]!==undefined && row[0]!==null && String(row[0]).trim()!=="";
+
+    if(colBloco && col0Preenchida){
+      // Linha de ATIVIDADE ou SUBATIVIDADE (marcador "SP" ou nome de obra na 1ª coluna)
+      var obraVal = colBloco.obra!==undefined ? row[colBloco.obra] : null;
+      var ativVal = colBloco.atividade!==undefined ? row[colBloco.atividade] : null;
+      var undVal  = colBloco.unidade!==undefined ? row[colBloco.unidade] : null;
+      var horasVal= colBloco.horas!==undefined ? toNum(row[colBloco.horas]) : null;
+      var prodHoraVal = colBloco.producaoHora!==undefined ? toNum(row[colBloco.producaoHora]) : null;
+      var kpiDiaVal   = colBloco.kpiDiaLegado!==undefined ? toNum(row[colBloco.kpiDiaLegado]) : null;
+      var coefVal = colBloco.coeficiente!==undefined ? toNum(row[colBloco.coeficiente]) : null;
+
+      // calcula producao por hora (prioriza coluna direta "KPI HORA"; senão deriva do KPI dia legado)
+      var producaoPorHora = prodHoraVal;
+      if((producaoPorHora===null||producaoPorHora===undefined) && kpiDiaVal!==null && horasVal){
+        producaoPorHora = kpiDiaVal / horasVal;
+      }
+      var producaoCalculada = (producaoPorHora!==null && horasVal!==null) ? producaoPorHora*horasVal : (kpiDiaVal!==null?kpiDiaVal:null);
+
+      var nomeLimpo = ativVal && String(ativVal).trim()!=="" ? String(ativVal).trim() : null;
+
+      if(novoBlocoPendente){
+        // Só a 1ª linha do bloco (a ATIVIDADE-pai) traz o nome da Obra de verdade;
+        // em linhas de subatividade essa mesma coluna carrega o marcador "SP"
+        // (ou, por inconsistência da planilha, o nome da obra repetido), então
+        // NUNCA atualizamos curObraNome a partir de uma linha de subatividade.
+        if(obraVal && String(obraVal).trim()!=="" && String(obraVal).trim().toUpperCase()!=="SP"){
+          curObraNome = String(obraVal).trim();
+        }
+        if(!curObraNome) curObraNome = "Obra sem nome";
+        if(!obras[curObraNome]){ obras[curObraNome]={nome:curObraNome, atividades:[]}; obrasOrdem.push(curObraNome); }
+        // 1ª linha do bloco = ATIVIDADE (pai)
+        curAtividade = {
+          id: uid(), nome: nomeLimpo || "Atividade", unidade: undVal||"", temSub:false,
+          subatividades: [], resources: [],
+          producaoPorHora: producaoPorHora, horas: horasVal, horasOriginal: horasVal, producaoCalculada: producaoCalculada, coeficiente: coefVal,
+          chave: curObraNome + '|' + (nomeLimpo || "Atividade")
+        };
+        obras[curObraNome].atividades.push(curAtividade);
+        curSubatividade = null;
+        novoBlocoPendente = false;
+      } else if(curAtividade){
+        // linhas seguintes do mesmo bloco = SUBATIVIDADES da atividade atual
+        var marcadorAmbiguo = String(row[0]).trim().toUpperCase()!=="SP";
+        if(marcadorAmbiguo) stats.marcadoresAmbiguos++;
+        migrarParaSubatividade(curAtividade);
+        var nomeSub = nomeLimpo || ("Subatividade "+(curAtividade.subatividades.length+1));
+        curSubatividade = {
+          id: uid(), nome: nomeSub,
+          unidade: undVal || curAtividade.unidade, horas: horasVal, horasOriginal: horasVal, producaoPorHora: producaoPorHora,
+          producaoCalculada: producaoCalculada, coeficiente: coefVal, resources: [],
+          chave: curAtividade.chave + '|' + nomeSub, marcadorAmbiguo: marcadorAmbiguo
+        };
+        curAtividade.subatividades.push(curSubatividade);
+      }
+      curGrupo = null;
+      return;
+    }
+
+    var marcador = isGroupMarkerRow(row);
+    if(marcador){ curGrupo = marcador; return; }
+
+    if(colRecurso && curAtividade){
+      var desc = colRecurso.descricao!==undefined ? row[colRecurso.descricao] : null;
+      if(!desc || String(desc).trim()==="") return;
+      var descStr = String(desc).trim();
+      if(GRUPOS[normalize(descStr)]) { curGrupo = GRUPOS[normalize(descStr)]; return; }
+      if(!curGrupo) curGrupo = 'Materiais';
+
+      var recurso = {
+        codigo: colRecurso.codigo!==undefined ? row[colRecurso.codigo] : "",
+        descricao: descStr,
+        unidade: colRecurso.unidadeRecurso!==undefined ? row[colRecurso.unidadeRecurso] : "",
+        qtd: colRecurso.qtd!==undefined ? toNum(row[colRecurso.qtd]) : null,
+        consumoUnd: colRecurso.consumoUnd!==undefined ? toNum(row[colRecurso.consumoUnd]) : null,
+        precoUnitario: colRecurso.precoUnitario!==undefined ? toNum(row[colRecurso.precoUnitario]) : null,
+        custoUnitario: colRecurso.custoUnitario!==undefined ? toNum(row[colRecurso.custoUnitario]) : null,
+        tipo: curGrupo
+      };
+      var alvo = curSubatividade || curAtividade;
+      // calcula consumo/und se nao informado
+      if((recurso.consumoUnd===null||recurso.consumoUnd===undefined) && recurso.qtd!==null && alvo.producaoPorHora){
+        recurso.consumoUnd = recurso.qtd / alvo.producaoPorHora;
+      }
+      if(recurso.custoUnitario===null && recurso.precoUnitario!==null && recurso.consumoUnd!==null){
+        recurso.custoUnitario = recurso.precoUnitario * recurso.consumoUnd;
+      }
+      alvo.resources.push(recurso);
+    }
+  });
+
+  // dedup: Obra+Atividade+Subatividade+Descricao (mantém primeira ocorrencia)
+  obrasOrdem.forEach(function(oNome){
+    obras[oNome].atividades.forEach(function(a){
+      stats.atividades++;
+      if(a.temSub){
+        a.subatividades.forEach(function(s){
+          dedupList(s.resources, oNome, a.nome, s.nome);
+          stats.subatividades++;
+          stats.recursos += s.resources.length;
+          if(s.resources.length===0) stats.leafsSemRecurso++;
+        });
+      } else {
+        dedupList(a.resources, oNome, a.nome, "");
+        stats.recursos += a.resources.length;
+        if(a.resources.length===0) stats.leafsSemRecurso++;
+      }
+    });
+  });
+
+  return { obras: obrasOrdem.map(function(n){ return obras[n]; }), stats: stats };
+}
+function dedupList(list, obra, ativ, sub){
+  var seen = {};
+  for(var i=list.length-1;i>=0;i--){
+    var k = obra+'|'+ativ+'|'+sub+'|'+normalize(list[i].descricao);
+    if(seen[k]){ list.splice(i,1); } else { seen[k]=true; }
+  }
+}
+
+/* ============================================================
+   ESTADO GLOBAL
+   ============================================================ */
+var STATE = {
+  obras: [],           // dados parseados
+  filtros: { obra:'', atividades:new Set(), subatividades:new Set(), busca:'' },
+  expandido: {},       // id -> bool
+  buscaLocal: {}       // ativId -> texto de busca de subatividade dentro daquela atividade
+};
+var CHARTS = {};
+
+/* ============================================================
+   DADOS DE EXEMPLO
+   Recorte fiel (linhas 1-102) da própria planilha "Composição Segregado
+   rev. teste.xlsx" enviada pela COSAMPA, incluindo:
+   - Atividade com subatividades (MONTAGEM ELETROMECÂNICA... -> 4 SPs);
+   - Atividade com subatividades e grupo de Materiais (VALETAS TIPO 1);
+   - Coluna "Coeficiente" preenchida em algumas subatividades.
+   Serve apenas de demonstração inicial; ao importar Excel ou atualizar via
+   Google Sheets, estes dados são totalmente substituídos.
+   ============================================================ */
+var SAMPLE_ROWS = [["Obra", "Atividade", "UNIDADE", "KPI HORA", "Horas trab. ", "Coeficiente"], ["Paraíso", "MONTAGEM ELETROMECÂNICA DO MÓDULO LONGI SOLAR LR8-66HYD-650M", "und"], ["SP", "MONTAGEM DE MÓDULOS FOTOVOTÁICOS", "und", 150, 9, 1], [null, "Descrição", "Unidade", "QTD. ", "Consumo/Und"], [null, "Mão de Obra"], [null, "AJUDANTE/SERVENTE", "H", 2, 0.013333], [null, "MONTADOR", "H", 8, 0.053333], ["SP", "CONECTORIZAÇÃO DE MÓDULOS", "und", 125, 9, 1], [null, "Descrição", "Unidade", "QTD. ", "Consumo/Und"], [null, "Mão de Obra"], [null, "ELETRICISTA MONTADOR", "H", 1, 0.008], [null, "AJUDANTE DE ELETRICISTA", "H", 2, 0.016], ["SP", "CONEXÃO ELÉTRICA DOS MÓDULOS FOTOVOLTAICOS E FIXAÇÃO DE ABRAÇADEIRAS, FORMANDO STRINGS DE 30 MÓDULOS", "und", 70, 9, 1], [null, "Descrição", "Unidade", "QTD. ", "Consumo/Und"], [null, "Mão de Obra"], [null, "ELETRICISTA MONTADOR", "H", 1, 0.014286], [null, "AJUDANTE/SERVENTE", "H", 1, 0.014286], ["SP", "TRANPORTE DE MÓDULOS (PAINEIS FOTOVOTÁICOS) PARA DISTRIBUIÇÃO (FV)", "und", 400, 9, 1], [null, "Descrição", "Unidade", "QTD. ", "Consumo/Und"], [null, "Mão de Obra"], [null, "AJUDANTE/SERVENTE", "H", 2, 0.005], [null, "OPERADOR DE GUINDASTE (MANITU)", "H", 1, 0.0025], [null, "SINALEIRO/GREIDISTA", "H", 1, 0.0025], [null, "Equipamento"], [null, "GUINDASTE TELESCÓPICO (MANITU)", "H", 1, 0.0025], ["Obra", "Atividade", "UNIDADE", "KPI HORA", "Horas trab. "], ["Paraíso", "VALETAS TRAPEZOIDAL DE CONCRETO 1.5V:1.0H  - TIPO 1 - 0,40 x 0,40  - Escavação ", "m"], ["SP", "Escavação ", "m3", 230.769231, 9, 0.78], [null, "Descrição", "Unidade", "QTD. ", "Consumo/Und"], [null, "Mão de Obra"], [null, "SINALEIRO/GREIDISTA", "H", 1, 0.00338], [null, "OPERADOR DE ESCAVADEIRA HIDRÁULICA", "H", 1, 0.00338], [null, "MOTORISTA DE VEÍCULOS PESADOS I ", "H", 2, 0.00676], [null, "Equipamento"], [null, "CAMINHÃO BASCULANTE DE 15 M3", "H", 2, 0.00676], [null, "ESCAVADEIRA HIDRÁULICA DE 20 T", "H", 1, 0.00338], ["SP", " Conc. Extrusora", "m3", 218.181818, 9, 0.165], [null, "Descrição", "Unidade", "QTD. ", "Consumo/Und"], [null, "Mão de Obra"], [null, "AJUDANTE DE CAMPO", "H", 1, 0.000756], [null, "AJUDANTE/SERVENTE", "H", 3, 0.002269], [null, "PEDREIRO", "H", 1, 0.000756], [null, "Equipamento"], [null, "EXTRUSORA DE CONCRETO", "H", 1, 0.000756], ["SP", "Confecção e lançamento de concreto ", "m3", 981.818182, 9, 0.165], [null, "Descrição", "Unidade", "QTD. ", "Consumo/Und"], [null, "Mão de Obra"], [null, "AJUDANTE/SERVENTE", "H", 1, 0.000168], [null, "OPERADOR DE PA MECÂNICA II", "H", 1, 0.000168], [null, "SINALEIRO/GREIDISTA", "H", 1, 0.000168], [null, "MOTORISTA DE VEÍCULOS PESADOS II", "H", 6, 0.001008], [], [null, "Equipamento"], [null, "CAMINHÃO BETONEIRA DE 8 M3", "H", 6, 0.001008], [null, "OPERADOR DE USINA", "H", 1, 0.000168], [null, "CENTRAL DOSADORA DE CONCRETO FIXA CAP DE 30M3/H", "H", 1, 0.000168], [null, "PÁ MECÂNICA PEQUENA", "H", 1, 0.000168], [null, "SILO DE CIMENTO", "H", 1, 0.000168], [null, "Materiais"], [null, "AREIA GROSSA", "M3", null, 0.099], [null, "BRITA 1", "M3", null, 0.132], [null, "BIDIM (MANTA GEOTEXTIL)", "M2", null, 0.0825], [null, "CIMENTO PORTLAND A GRANEL", "T", null, 0.05775], ["Obra", "Atividade", "UNIDADE", "KPI HORA", "Horas trab. "], ["Paraíso", "VALETAS TRAPEZOIDAL DE CONCRETO 1.5V:1.0H  -TIPO 2 - 0.60 x 0.45 (b x h)", "m"], ["SP", "Escavação ", "m3", 176.470588, 9, 1.02], [null, "Descrição", "Unidade", "QTD. ", "Consumo/Und"], [null, "Mão de Obra"], [null, "SINALEIRO/GREIDISTA", "H", 1, 0.00578], [null, "OPERADOR DE ESCAVADEIRA HIDRÁULICA", "H", 1, 0.00578], [null, "MOTORISTA DE VEÍCULOS PESADOS I ", "H", 2, 0.01156], [null, "Equipamento"], [null, "CAMINHÃO BASCULANTE DE 15 M3", "H", 2, 0.01156], [null, "ESCAVADEIRA HIDRÁULICA DE 20 T", "H", 1, 0.00578], ["Paraíso", " Conc. Extrusora", "m3", 4, 9, 0.199], [null, "Descrição", "Unidade", "QTD. ", "Consumo/Und"], [null, "Mão de Obra"], [null, "AJUDANTE DE CAMPO", "H", 1, 0.04975], [null, "AJUDANTE/SERVENTE", "H", 3, 0.14925], [null, "PEDREIRO", "H", 1, 0.04975], [null, "Equipamento"], [null, "EXTRUSORA DE CONCRETO", "H", 1, 0.04975], ["SP", "Confecção e lançamento de concreto ", "m3", 18, 9, 0.199], [null, "Descrição", "Unidade", "QTD. ", "Consumo/Und"], [null, "Mão de Obra"], [null, "AJUDANTE/SERVENTE", "H", 1, 0.011056], [null, "OPERADOR DE PA MECÂNICA II", "H", 1, 0.011056], [null, "SINALEIRO/GREIDISTA", "H", 1, 0.011056], [null, "MOTORISTA DE VEÍCULOS PESADOS II", "H", 6, 0.066333], [], [null, "Equipamento"], [null, "CAMINHÃO BETONEIRA DE 8 M3", "H", 6, 0.066333], [null, "OPERADOR DE USINA", "H", 1, 0.011056], [null, "CENTRAL DOSADORA DE CONCRETO FIXA CAP DE 30M3/H", "H", 1, 0.011056], [null, "PÁ MECÂNICA PEQUENA", "H", 1, 0.011056], [null, "SILO DE CIMENTO", "H", 1, 0.011056], [null, "Materiais"], [null, "BIDIM (MANTA GEOTEXTIL)", "M2", null, 0.0995], [null, "CIMENTO PORTLAND A GRANEL", "T", null, 0.06965], [null, "AREIA GROSSA", "M3", null, 0.1194], [null, "BRITA 1", "M3", null, 0.1592], [null, "PLASTIFICANTE/REDUTOR DE ÁGUA", "KG", null, 0.199]];
+function loadSample(){
+  var parsed = parseSheetRows(SAMPLE_ROWS);
+  STATE.obras = parsed.obras; STATE.importStats = parsed.stats;
+  afterDataLoaded();
+}
+
+/* ============================================================
+   CARREGAMENTO AUTOMÁTICO DA PLANILHA PADRÃO (Google Sheets)
+   Assim, quem só recebe o link do site (sem precisar clicar em
+   "Google Sheets" manualmente) já vê os dados mais recentes da
+   planilha publicada.
+   ============================================================ */
+var DEFAULT_GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRGCcIvP2yRBmyZ_1f0_8L2Sm4_JFYIJ1QhpWnK7BSEt5IW7BOJgWIKVjYrP439_jzBujA3GnxS4tb0/pubhtml";
+var PLANILHA_CACHE_KEY = 'cosampa_dashboard_planilha_cache_v1';
+function salvarCachePlanilha(rows){
+  try{ localStorage.setItem(PLANILHA_CACHE_KEY, JSON.stringify({rows: rows, quando: new Date().toISOString()})); }catch(e){}
+}
+function carregarCachePlanilha(){
+  try{ var raw = localStorage.getItem(PLANILHA_CACHE_KEY); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+}
+function aplicarDadosCarregados(rows, origem, quandoTexto, manterEstado){
+  var parsed = parseSheetRows(rows);
+  STATE.obras = parsed.obras; STATE.importStats = parsed.stats;
+  STATE.origemDados = origem;
+  STATE.origemDadosQuando = quandoTexto || null;
+  afterDataLoaded(manterEstado);
+}
+function setBotaoAtualizarEstado(estado){
+  var btn = document.getElementById('btnAtualizarPlanilha');
+  if(!btn) return;
+  if(estado==='carregando'){ btn.disabled = true; btn.textContent = '🔄 Atualizando...'; }
+  else if(estado==='sucesso'){ btn.disabled = false; btn.textContent = '✓ Atualizado!'; setTimeout(function(){ btn.textContent = '🔄 Atualizar Planilha'; }, 2000); }
+  else { btn.disabled = false; btn.textContent = '🔄 Atualizar Planilha'; }
+}
+function carregarPlanilhaPadrao(manual, silenciosa){
+  if(manual) setBotaoAtualizarEstado('carregando');
+  if(typeof XLSX === 'undefined'){
+    if(manual){ setBotaoAtualizarEstado('erro'); alert('A biblioteca de importação (XLSX) não carregou. Verifique sua conexão com a internet e tente novamente.'); return; }
+    if(silenciosa) return; // não sobrescreve os dados já carregados por causa de uma falha temporária
+    var cache = carregarCachePlanilha();
+    if(cache){ aplicarDadosCarregados(cache.rows, 'cache', new Date(cache.quando).toLocaleString('pt-BR')); }
+    else { loadSample(); STATE.origemDados = 'exemplo'; }
+    return;
+  }
+  var csvUrl = googleSheetsUrlParaCsv(DEFAULT_GOOGLE_SHEET_URL);
+  fetch(csvUrl).then(function(r){
+    if(!r.ok){ throw new Error('HTTP '+r.status); }
+    return r.text();
+  }).then(function(csv){
+    if(/^\s*<(!doctype|html)/i.test(csv)){ throw new Error('resposta em HTML, não CSV'); }
+    var wb = XLSX.read(csv, {type:'string'});
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
+    salvarCachePlanilha(rows);
+    aplicarDadosCarregados(rows, 'online', new Date().toLocaleString('pt-BR'), silenciosa);
+    if(manual) setBotaoAtualizarEstado('sucesso');
+  }).catch(function(err){
+    if(silenciosa){ console.warn('Atualização automática em segundo plano falhou (mantendo dados atuais):', err); return; }
+    var cache = carregarCachePlanilha();
+    if(cache){
+      aplicarDadosCarregados(cache.rows, 'cache', new Date(cache.quando).toLocaleString('pt-BR'));
+    } else {
+      loadSample();
+      STATE.origemDados = 'exemplo';
+    }
+    console.warn('Não foi possível carregar a planilha padrão automaticamente:', err);
+    if(manual){
+      setBotaoAtualizarEstado('erro');
+      alert('Não foi possível atualizar a planilha agora.\n\nMotivo: '+err.message+'\n\nVerifique se a planilha continua publicada (Arquivo > Compartilhar > Publicar na Web) e se você está conectado à internet. '+(cache?'Os dados exibidos são os últimos salvos neste navegador.':'Os dados exibidos são de exemplo.'));
+    }
+  });
+}
+
+/* ============================================================
+   IMPORTAÇÃO EXCEL / GOOGLE SHEETS
+   ============================================================ */
+document.getElementById('btnImportExcel').addEventListener('click', function(){
+  document.getElementById('fileInputExcel').click();
+});
+document.getElementById('fileInputExcel').addEventListener('change', function(e){
+  var file = e.target.files[0];
+  if(!file) return;
+  if(typeof XLSX === 'undefined'){ alert('Biblioteca de importação (XLSX) não carregou. Verifique a conexão com a internet e tente novamente.'); return; }
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    var data = new Uint8Array(ev.target.result);
+    var wb = XLSX.read(data, {type:'array', cellDates:false});
+    var allRows = [];
+    wb.SheetNames.forEach(function(sn){
+      var ws = wb.Sheets[sn];
+      var rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
+      allRows = allRows.concat(rows);
+    });
+    var parsed = parseSheetRows(allRows);
+    STATE.obras = parsed.obras; STATE.importStats = parsed.stats;
+    STATE.origemDados = 'manual'; STATE.origemDadosQuando = null;
+    afterDataLoaded();
+  };
+  reader.readAsArrayBuffer(file);
+});
+function googleSheetsUrlParaCsv(url){
+  // Aceita: link "Publicar na web" em HTML (.../pubhtml ou .../pub),
+  // link "Publicar na web" já em CSV (.../pub?output=csv),
+  // ou o link normal de edição (.../d/<ID>/edit#gid=123).
+  try{
+    var u = String(url).trim();
+    // já é CSV
+    if(/output=csv/i.test(u)) return u;
+    // publicado (contém /d/e/<PUBID>/)
+    var mPub = u.match(/\/spreadsheets\/d\/e\/([^/]+)\//);
+    if(mPub){
+      var gidPub = (u.match(/[?&#]gid=(\d+)/) || [])[1];
+      var base = 'https://docs.google.com/spreadsheets/d/e/'+mPub[1]+'/pub?output=csv';
+      return gidPub ? (base+'&gid='+gidPub) : base;
+    }
+    // link normal de edição/compartilhamento (contém /d/<ID>/)
+    var mEdit = u.match(/\/spreadsheets\/d\/([^/]+)\//);
+    if(mEdit){
+      var gidEdit = (u.match(/[?&#]gid=(\d+)/) || [])[1] || '0';
+      return 'https://docs.google.com/spreadsheets/d/'+mEdit[1]+'/export?format=csv&gid='+gidEdit;
+    }
+    return u;
+  }catch(e){ return url; }
+}
+document.getElementById('btnAtualizarPlanilha').addEventListener('click', function(){
+  carregarPlanilhaPadrao(true);
+});
+document.getElementById('btnGoogleSheets').addEventListener('click', function(){
+  if(typeof XLSX === 'undefined'){ alert('Biblioteca de importação (XLSX) não carregou. Verifique a conexão com a internet e tente novamente.'); return; }
+  var url = prompt("Cole o link da planilha Google Sheets publicada\n(pode ser o link de Publicar na web em HTML ou CSV, ou o link normal de compartilhamento):");
+  if(!url) return;
+  var csvUrl = googleSheetsUrlParaCsv(url);
+  fetch(csvUrl).then(function(r){
+    if(!r.ok){ throw new Error('A planilha respondeu com erro HTTP '+r.status+'. Verifique se ela está publicada/compartilhada como "Qualquer pessoa com o link pode ver".'); }
+    return r.text();
+  }).then(function(csv){
+    if(/^\s*<(!doctype|html)/i.test(csv)){
+      throw new Error('O link retornou uma página HTML em vez de dados da planilha. Confirme em Arquivo > Compartilhar > Publicar na Web, escolhendo o formato CSV (não HTML), ou deixe que o app converta automaticamente o link publicado.');
+    }
+    var wb = XLSX.read(csv, {type:'string'});
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
+    salvarCachePlanilha(rows);
+    var parsed = parseSheetRows(rows);
+    STATE.obras = parsed.obras; STATE.importStats = parsed.stats;
+    STATE.origemDados = 'online'; STATE.origemDadosQuando = new Date().toLocaleString('pt-BR');
+    afterDataLoaded();
+  }).catch(function(err){ alert("Não foi possível atualizar via Google Sheets:\n\n"+err.message+"\n\nDica: no Google Sheets, vá em Arquivo > Compartilhar > Publicar na Web, selecione a aba certa, escolha o formato CSV e use o link gerado ali."); });
+});
+
+/* ============================================================
+   PERSISTÊNCIA DAS EDIÇÕES DE HORAS (localStorage do navegador)
+   Cada nó (atividade sem subatividade, ou cada subatividade) tem uma
+   "chave" estável = Obra|Atividade(|Subatividade), que não muda entre
+   reimportações da mesma planilha — é nela que a edição fica salva.
+   ============================================================ */
+var HORAS_OVERRIDES_KEY = 'cosampa_dashboard_horas_overrides_v1';
+function carregarOverridesHoras(){
+  try { return JSON.parse(localStorage.getItem(HORAS_OVERRIDES_KEY) || '{}'); }
+  catch(e){ return {}; }
+}
+function salvarOverrideHoras(chave, valor){
+  try {
+    var o = carregarOverridesHoras();
+    o[chave] = valor;
+    localStorage.setItem(HORAS_OVERRIDES_KEY, JSON.stringify(o));
+  } catch(e){ /* localStorage indisponível: edição some ao recarregar, sem quebrar o app */ }
+}
+function removerOverrideHoras(chave){
+  try {
+    var o = carregarOverridesHoras();
+    delete o[chave];
+    localStorage.setItem(HORAS_OVERRIDES_KEY, JSON.stringify(o));
+  } catch(e){}
+}
+function limparTodosOverridesHoras(){
+  try { localStorage.removeItem(HORAS_OVERRIDES_KEY); } catch(e){}
+}
+function todosOsNos(){
+  var out = [];
+  STATE.obras.forEach(function(o){
+    o.atividades.forEach(function(a){
+      if(a.temSub){ a.subatividades.forEach(function(s){ out.push(s); }); }
+      else out.push(a);
+    });
+  });
+  return out;
+}
+function recalcularNo(no){
+  no.producaoCalculada = (no.producaoPorHora!==null && no.horas!==null) ? no.producaoPorHora*no.horas : no.producaoCalculada;
+}
+function aplicarOverridesHoras(){
+  var overrides = carregarOverridesHoras();
+  todosOsNos().forEach(function(no){
+    if(Object.prototype.hasOwnProperty.call(overrides, no.chave)){
+      no.horas = overrides[no.chave];
+      no.horasEditada = true;
+      recalcularNo(no);
+    }
+  });
+}
+
+function afterDataLoaded(manterEstado){
+  if(!manterEstado){
+    STATE.filtros = { obra:'', atividades:new Set(), subatividades:new Set(), busca:'' };
+    STATE.expandido = {};
+  }
+  aplicarOverridesHoras();
+  // Melhoria: atividades com muitas subatividades (planilhas reais chegam a ter
+  // 20-30) já nascem recolhidas, para não sobrecarregar a primeira visualização.
+  // (só se aplica em carregamento novo, não em atualização silenciosa em segundo plano)
+  if(!manterEstado){
+    STATE.obras.forEach(function(o, oi){
+      o.atividades.forEach(function(a, ai){
+        if(a.temSub && a.subatividades.length > 8){
+          STATE.expandido['obra_'+oi+'_a'+ai] = false;
+        }
+      });
+    });
+  }
+  populateFilters();
+  renderImportNotice();
+  renderAll();
+}
+function renderImportNotice(){
+  var box = document.getElementById('importNotice');
+  if(!box) return;
+  var st = STATE.importStats;
+  if(!st){ box.classList.add('hidden'); box.innerHTML=''; return; }
+  var avisos = '';
+  if(STATE.origemDados==='online'){
+    avisos += '<div>✓ Dados carregados automaticamente da planilha do Google Sheets em '+esc(STATE.origemDadosQuando||'')+'.</div>';
+  } else if(STATE.origemDados==='cache'){
+    avisos += '<div>⚠ Não foi possível conectar à planilha agora. Exibindo a última versão salva neste navegador (de '+esc(STATE.origemDadosQuando||'data desconhecida')+'). Clique em "Google Sheets" para tentar atualizar.</div>';
+  } else if(STATE.origemDados==='exemplo'){
+    avisos += '<div>⚠ Não foi possível conectar à planilha do Google Sheets. Exibindo dados de exemplo. Clique em "Google Sheets" para importar manualmente.</div>';
+  }
+  if(st.marcadoresAmbiguos>0){
+    avisos += '<div>⚠ '+st.marcadoresAmbiguos+' subatividade(s) identificada(s) pela posição na planilha, pois não estavam marcadas com "SP" na 1ª coluna (foram tratadas normalmente como subatividade).</div>';
+  }
+  if(st.leafsSemRecurso>0){
+    avisos += '<div>⚠ '+st.leafsSemRecurso+' atividade(s)/subatividade(s) não têm nenhum recurso associado na planilha.</div>';
+  }
+  box.innerHTML = '<div class="import-notice-head">Importação concluída: '+st.atividades+' atividade(s) • '+st.subatividades+' subatividade(s) • '+st.recursos+' recurso(s)'+
+    '<button type="button" id="btnFecharAviso" class="notice-close">×</button></div>' + (avisos?('<div class="import-notice-warnings">'+avisos+'</div>'):'');
+  box.classList.remove('hidden');
+  var closeBtn = document.getElementById('btnFecharAviso');
+  if(closeBtn) closeBtn.addEventListener('click', function(){ box.classList.add('hidden'); });
+}
+
+/* ============================================================
+   FILTROS
+   ============================================================ */
+function allAtividadesFlat(){
+  var out = [];
+  STATE.obras.forEach(function(o){
+    if(STATE.filtros.obra && o.nome!==STATE.filtros.obra) return;
+    o.atividades.forEach(function(a){ out.push({obra:o.nome, atividade:a}); });
+  });
+  return out;
+}
+function populateFilters(){
+  var selObra = document.getElementById('filtroObra');
+  selObra.innerHTML = '<option value="">Todas</option>' + STATE.obras.map(function(o){ return '<option value="'+esc(o.nome)+'">'+esc(o.nome)+'</option>'; }).join('');
+
+  renderAtividadeOptions();
+  renderSubatividadeOptions();
+}
+function renderAtividadeOptions(){
+  var box = document.getElementById('msAtividadeOptions');
+  var termo = normalize(document.getElementById('msAtividadeSearch').value);
+  var list = allAtividadesFlat();
+  var nomes = Array.from(new Set(list.map(function(x){ return x.atividade.nome; })));
+  box.innerHTML = nomes.filter(function(n){ return !termo || normalize(n).indexOf(termo)>=0; }).map(function(n){
+    var checked = STATE.filtros.atividades.has(n) ? 'checked' : '';
+    return '<label class="ms-option"><input type="checkbox" value="'+esc(n)+'" '+checked+' class="ms-check"> '+esc(n)+'</label>';
+  }).join('') || '<div style="font-size:12px;color:#999;padding:6px;">Nenhuma atividade encontrada</div>';
+  box.querySelectorAll('.ms-check').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      if(cb.checked) STATE.filtros.atividades.add(cb.value); else STATE.filtros.atividades.delete(cb.value);
+      updateAtividadeLabel();
+      // troca de atividade limpa a busca por descricao (regra do prompt) e a subatividade selecionada
+      document.getElementById('filtroBusca').value='';
+      STATE.filtros.busca='';
+      STATE.filtros.subatividades.clear();
+      renderSubatividadeOptions(); updateSubatividadeLabel();
+      renderAll();
+    });
+  });
+}
+function updateAtividadeLabel(){
+  var n = STATE.filtros.atividades.size;
+  document.getElementById('msAtividadeLabel').textContent = n===0 ? 'Todas as atividades' : (n+' selecionada'+(n>1?'s':''));
+  var badge = document.getElementById('msAtividadeCount');
+  if(n>0){ badge.textContent=n; badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); }
+}
+document.getElementById('msAtividadeBtn').addEventListener('click', function(){
+  document.getElementById('msAtividadePanel').classList.toggle('open');
+});
+document.getElementById('msAtividadeSearch').addEventListener('input', renderAtividadeOptions);
+document.getElementById('msSelAll').addEventListener('click', function(){
+  allAtividadesFlat().forEach(function(x){ STATE.filtros.atividades.add(x.atividade.nome); });
+  renderAtividadeOptions(); updateAtividadeLabel();
+  document.getElementById('filtroBusca').value=''; STATE.filtros.busca='';
+  STATE.filtros.subatividades.clear();
+  renderSubatividadeOptions(); updateSubatividadeLabel();
+  renderAll();
+});
+document.getElementById('msSelNone').addEventListener('click', function(){
+  STATE.filtros.atividades.clear();
+  renderAtividadeOptions(); updateAtividadeLabel();
+  document.getElementById('filtroBusca').value=''; STATE.filtros.busca='';
+  STATE.filtros.subatividades.clear();
+  renderSubatividadeOptions(); updateSubatividadeLabel();
+  renderAll();
+});
+document.getElementById('filtroObra').addEventListener('change', function(e){
+  STATE.filtros.obra = e.target.value;
+  STATE.filtros.atividades.clear();
+  STATE.filtros.subatividades.clear();
+  renderAtividadeOptions(); updateAtividadeLabel();
+  renderSubatividadeOptions(); updateSubatividadeLabel();
+  renderAll();
+});
+document.getElementById('filtroBusca').addEventListener('input', function(e){
+  STATE.filtros.busca = normalize(e.target.value); renderAll();
+});
+
+/* ---- Subatividade: combobox com busca, mesmo padrão do de Atividade ---- */
+function allSubatividadesFlat(){
+  var out = [];
+  STATE.obras.forEach(function(o){
+    if(STATE.filtros.obra && o.nome!==STATE.filtros.obra) return;
+    o.atividades.forEach(function(a){
+      if(STATE.filtros.atividades.size>0 && !STATE.filtros.atividades.has(a.nome)) return;
+      a.subatividades.forEach(function(s){ out.push(s.nome); });
+    });
+  });
+  return out;
+}
+function renderSubatividadeOptions(){
+  var box = document.getElementById('msSubatividadeOptions');
+  var termo = normalize(document.getElementById('msSubatividadeSearch').value);
+  var nomes = Array.from(new Set(allSubatividadesFlat()));
+  box.innerHTML = nomes.filter(function(n){ return !termo || normalize(n).indexOf(termo)>=0; }).map(function(n){
+    var checked = STATE.filtros.subatividades.has(n) ? 'checked' : '';
+    return '<label class="ms-option"><input type="checkbox" value="'+esc(n)+'" '+checked+' class="ms-sub-check"> '+esc(n)+'</label>';
+  }).join('') || '<div style="font-size:12px;color:#999;padding:6px;">Nenhuma subatividade encontrada</div>';
+  box.querySelectorAll('.ms-sub-check').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      if(cb.checked) STATE.filtros.subatividades.add(cb.value); else STATE.filtros.subatividades.delete(cb.value);
+      updateSubatividadeLabel();
+      renderAll();
+    });
+  });
+}
+function updateSubatividadeLabel(){
+  var n = STATE.filtros.subatividades.size;
+  document.getElementById('msSubatividadeLabel').textContent = n===0 ? 'Todas as subatividades' : (n+' selecionada'+(n>1?'s':''));
+  var badge = document.getElementById('msSubatividadeCount');
+  if(n>0){ badge.textContent=n; badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); }
+}
+document.getElementById('msSubatividadeBtn').addEventListener('click', function(){
+  document.getElementById('msSubatividadePanel').classList.toggle('open');
+});
+document.getElementById('msSubatividadeSearch').addEventListener('input', renderSubatividadeOptions);
+document.getElementById('msSubSelAll').addEventListener('click', function(){
+  allSubatividadesFlat().forEach(function(n){ STATE.filtros.subatividades.add(n); });
+  renderSubatividadeOptions(); updateSubatividadeLabel();
+  renderAll();
+});
+document.getElementById('msSubSelNone').addEventListener('click', function(){
+  STATE.filtros.subatividades.clear();
+  renderSubatividadeOptions(); updateSubatividadeLabel();
+  renderAll();
+});
+document.addEventListener('click', function(e){
+  var wrapAtiv = document.getElementById('msAtividade');
+  if(!wrapAtiv.contains(e.target)) document.getElementById('msAtividadePanel').classList.remove('open');
+  var wrapSub = document.getElementById('msSubatividade');
+  if(!wrapSub.contains(e.target)) document.getElementById('msSubatividadePanel').classList.remove('open');
+});
+
+/* ============================================================
+   MODELO FILTRADO
+   ============================================================ */
+function getFilteredModel(){
+  var out = [];
+  STATE.obras.forEach(function(o){
+    if(STATE.filtros.obra && o.nome!==STATE.filtros.obra) return;
+    var atividades = [];
+    o.atividades.forEach(function(a){
+      if(STATE.filtros.atividades.size>0 && !STATE.filtros.atividades.has(a.nome)) return;
+
+      if(a.temSub){
+        var subs = a.subatividades.filter(function(s){
+          if(STATE.filtros.subatividades.size>0 && !STATE.filtros.subatividades.has(s.nome)) return false;
+          if(STATE.filtros.busca){
+            var achou = s.resources.some(function(r){ return normalize(r.descricao).indexOf(STATE.filtros.busca)>=0; });
+            if(!achou) return false;
+          }
+          return true;
+        }).map(function(s){
+          var res = s.resources;
+          if(STATE.filtros.busca) res = res.filter(function(r){ return normalize(r.descricao).indexOf(STATE.filtros.busca)>=0; });
+          return Object.assign({}, s, {resources:res});
+        });
+        if(subs.length>0) atividades.push(Object.assign({}, a, {subatividades:subs}));
+      } else {
+        if(STATE.filtros.subatividades.size>0) return; // atividade sem sub nao aparece se ha filtro de subatividade
+        var res = a.resources;
+        if(STATE.filtros.busca){
+          res = res.filter(function(r){ return normalize(r.descricao).indexOf(STATE.filtros.busca)>=0; });
+          if(res.length===0) return;
+        }
+        atividades.push(Object.assign({}, a, {resources:res}));
+      }
+    });
+    if(atividades.length>0) out.push(Object.assign({}, o, {atividades:atividades}));
+  });
+  return out;
+}
+function leafNodes(model){
+  // retorna nos "folha" (atividade sem sub, ou cada subatividade) com producao/unidade
+  var out = [];
+  model.forEach(function(o){
+    o.atividades.forEach(function(a){
+      if(a.temSub){ a.subatividades.forEach(function(s){ out.push({obra:o.nome, atividade:a.nome, subatividade:s.nome, unidade:s.unidade, producaoPorHora:s.producaoPorHora, horas:s.horas, producaoCalculada:s.producaoCalculada, resources:s.resources}); }); }
+      else { out.push({obra:o.nome, atividade:a.nome, subatividade:'', unidade:a.unidade, producaoPorHora:a.producaoPorHora, horas:a.horas, producaoCalculada:a.producaoCalculada, resources:a.resources}); }
+    });
+  });
+  return out;
+}
+
+/* ============================================================
+   RENDER: CARDS
+   ============================================================ */
+function renderCards(model){
+  var leaves = leafNodes(model);
+  var porUnidade = {};
+  leaves.forEach(function(l){
+    var u = l.unidade || '(sem unidade)';
+    if(!porUnidade[u]) porUnidade[u] = {calc:0, horaSoma:0, horaN:0};
+    if(l.producaoCalculada!==null) porUnidade[u].calc += l.producaoCalculada;
+    if(l.producaoPorHora!==null){ porUnidade[u].horaSoma += l.producaoPorHora; porUnidade[u].horaN++; }
+  });
+  var unidades = Object.keys(porUnidade);
+  var cardsHtml = '';
+
+  function cardProducaoCalc(){
+    var label = '<div class="kpi-label">Produção calculada</div>';
+    if(unidades.length===0){
+      return '<div class="kpi-card"><div class="kpi-icon">📦</div><div>'+label+'<div class="kpi-value">-</div></div></div>';
+    }
+    if(unidades.length===1){
+      return '<div class="kpi-card"><div class="kpi-icon">📦</div><div>'+label+'<div class="kpi-value">'+fmt(porUnidade[unidades[0]].calc)+' <small>'+esc(unidades[0])+'</small></div></div></div>';
+    }
+    var detalhe = unidades.map(function(u){ return fmt(porUnidade[u].calc)+' '+esc(u); }).join(' &nbsp;•&nbsp; ');
+    return '<div class="kpi-card"><div class="kpi-icon">📦</div><div>'+label+'<div class="kpi-value">Múltiplas unidades</div><div class="kpi-multi">'+detalhe+'</div></div></div>';
+  }
+  cardsHtml = cardProducaoCalc();
+  document.getElementById('cardsRow').innerHTML = cardsHtml;
+}
+
+/* ============================================================
+   RENDER: ARVORE
+   ============================================================ */
+function campoHoras(no){
+  var val = (no.horas!==null && no.horas!==undefined) ? no.horas : '';
+  var editado = no.horasEditada ? ' horas-editada' : '';
+  var restaurar = no.horasEditada
+    ? '<button type="button" class="restaurar-horas-btn" data-node-id="'+no.id+'" title="Restaurar valor original ('+fmt(no.horasOriginal,2)+')" onclick="event.stopPropagation()">↺</button>'
+    : '';
+  return '<span>Horas: <input type="number" step="any" min="0" class="horas-input'+editado+'" data-node-id="'+no.id+'" value="'+val+'" onclick="event.stopPropagation()">'+restaurar+'</span>';
+}
+function renderTree(model){
+  var root = document.getElementById('treeRoot');
+  // preserva foco/cursor do campo de busca local de subatividade entre re-renders
+  var focoAtivo = document.activeElement;
+  var focoAtivId = (focoAtivo && focoAtivo.classList && focoAtivo.classList.contains('sub-search-input')) ? focoAtivo.getAttribute('data-ativ-id') : null;
+  var focoCursor = focoAtivId ? focoAtivo.selectionStart : null;
+  var html = '';
+  model.forEach(function(o, oi){
+    var obraId = 'obra_'+oi;
+    if(STATE.expandido[obraId]===undefined) STATE.expandido[obraId]=true;
+    var obraOpen = STATE.expandido[obraId];
+    html += '<div class="node-obra" data-toggle="'+obraId+'"><button class="toggle-btn">'+(obraOpen?'−':'+')+'</button><span>🏗 '+esc(o.nome)+'</span></div>';
+    html += '<div class="' + (obraOpen?'':'hidden') + '" data-group="'+obraId+'">';
+    o.atividades.forEach(function(a, ai){
+      var ativId = obraId+'_a'+ai;
+      if(STATE.expandido[ativId]===undefined) STATE.expandido[ativId]=true;
+      var ativOpen = STATE.expandido[ativId];
+      html += '<div class="activity-sep"></div>';
+      var indicadores = '';
+      if(!a.temSub){
+        indicadores = '<span class="indicators-inline">'+campoHoras(a)+
+          '<span>Prod. calc.: '+fmt(a.producaoCalculada)+' '+esc(a.unidade||'')+'</span></span>';
+      }
+      html += '<div class="node-atividade" data-toggle="'+ativId+'"><button class="toggle-btn">'+(ativOpen?'−':'+')+'</button><span>'+esc(a.nome)+'</span>'+indicadores+'</div>';
+      html += '<div class="'+(ativOpen?'':'hidden')+'" data-group="'+ativId+'">';
+      if(a.temSub){
+        var termoLocal = normalize(STATE.buscaLocal[ativId] || '');
+        var subIndexadas = a.subatividades.map(function(s, si){ return {s:s, si:si}; });
+        var subVisiveis = termoLocal ? subIndexadas.filter(function(x){ return normalize(x.s.nome).indexOf(termoLocal)>=0; }) : subIndexadas;
+        if(a.subatividades.length > 5){
+          html += '<div class="sub-search-row">'+
+            '<input type="text" class="sub-search-input" data-ativ-id="'+ativId+'" placeholder="Buscar subatividade nesta atividade..." value="'+esc(STATE.buscaLocal[ativId]||'')+'" onclick="event.stopPropagation()">'+
+            '<span class="sub-search-count">mostrando '+subVisiveis.length+' de '+a.subatividades.length+'</span>'+
+          '</div>';
+        }
+        subVisiveis.forEach(function(item){
+          var s = item.s, si = item.si;
+          var subId = ativId+'_s'+si;
+          if(STATE.expandido[subId]===undefined) STATE.expandido[subId]=true;
+          var subOpen = STATE.expandido[subId];
+          var badgeSp = s.marcadorAmbiguo
+            ? '<span class="sp-badge sp-badge-warn" title="Esta subatividade não estava marcada com \'SP\' na planilha; foi identificada automaticamente pela posição.">SP ⚠</span>'
+            : '<span class="sp-badge">SP</span>';
+          html += '<div class="node-subatividade" data-toggle="'+subId+'"><button class="toggle-btn">'+(subOpen?'−':'+')+'</button>'+badgeSp+'<span>'+esc(s.nome)+'</span>'+
+            '<span class="indicators-inline">'+campoHoras(s)+
+            '<span>Prod. calc.: '+fmt(s.producaoCalculada)+' '+esc(s.unidade||'')+'</span></span></div>';
+          html += '<div class="'+(subOpen?'':'hidden')+'" data-group="'+subId+'">';
+          html += renderResourceGroups(s.resources, true);
+          html += '</div>';
+        });
+        if(termoLocal && subVisiveis.length===0){
+          html += '<div style="padding:8px 12px 8px 46px;color:#999;font-size:12px;">Nenhuma subatividade encontrada para "'+esc(STATE.buscaLocal[ativId])+'".</div>';
+        }
+      } else {
+        html += renderResourceGroups(a.resources, false);
+      }
+      html += '</div>'; // fecha grupo atividade
+    });
+    html += '</div>'; // fecha grupo obra
+  });
+  root.innerHTML = html || '<div style="padding:20px;text-align:center;color:#999;font-size:13px;">Nenhum resultado para os filtros selecionados.</div>';
+
+  root.querySelectorAll('[data-toggle]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var id = el.getAttribute('data-toggle');
+      STATE.expandido[id] = !STATE.expandido[id];
+      renderTree(getFilteredModel());
+    });
+  });
+  root.querySelectorAll('.horas-input').forEach(function(inp){
+    inp.addEventListener('click', function(e){ e.stopPropagation(); });
+    inp.addEventListener('change', function(e){
+      e.stopPropagation();
+      atualizarHorasNo(inp.getAttribute('data-node-id'), inp.value);
+    });
+  });
+  root.querySelectorAll('.restaurar-horas-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      restaurarHorasNo(btn.getAttribute('data-node-id'));
+    });
+  });
+  root.querySelectorAll('.sub-search-input').forEach(function(inp){
+    inp.addEventListener('click', function(e){ e.stopPropagation(); });
+    inp.addEventListener('input', function(e){
+      e.stopPropagation();
+      STATE.buscaLocal[inp.getAttribute('data-ativ-id')] = inp.value;
+      renderTree(getFilteredModel());
+    });
+  });
+  if(focoAtivId){
+    var elFoco = root.querySelector('.sub-search-input[data-ativ-id="'+focoAtivId+'"]');
+    if(elFoco){
+      elFoco.focus();
+      if(focoCursor!==null){ elFoco.setSelectionRange(focoCursor, focoCursor); }
+    }
+  }
+}
+function encontrarNoPorId(id){
+  var achado = null;
+  STATE.obras.forEach(function(o){
+    o.atividades.forEach(function(a){
+      if(a.id===id) achado = a;
+      a.subatividades.forEach(function(s){ if(s.id===id) achado = s; });
+    });
+  });
+  return achado;
+}
+function atualizarHorasNo(id, valorDigitado){
+  var no = encontrarNoPorId(id);
+  if(!no) return;
+  var novasHoras = toNum(valorDigitado);
+  no.horas = novasHoras;
+  // Recalcula a produção do dia (produção calculada) a partir da Produção/Hora
+  // já conhecida (KPI/hora da planilha) x as novas horas informadas pelo usuário.
+  recalcularNo(no);
+  if(novasHoras!==null && novasHoras!==no.horasOriginal){
+    no.horasEditada = true;
+    salvarOverrideHoras(no.chave, novasHoras);
+  } else {
+    no.horasEditada = false;
+    removerOverrideHoras(no.chave);
+  }
+  renderAll();
+}
+function restaurarHorasNo(id){
+  var no = encontrarNoPorId(id);
+  if(!no) return;
+  no.horas = no.horasOriginal;
+  no.horasEditada = false;
+  recalcularNo(no);
+  removerOverrideHoras(no.chave);
+  renderAll();
+}
+function restaurarTodasHoras(){
+  if(!confirm('Restaurar as horas originais da planilha em todas as atividades e subatividades? Isso desfaz todas as edições feitas neste navegador.')) return;
+  todosOsNos().forEach(function(no){
+    no.horas = no.horasOriginal;
+    no.horasEditada = false;
+    recalcularNo(no);
+  });
+  limparTodosOverridesHoras();
+  renderAll();
+}
+document.getElementById('btnRestaurarHoras').addEventListener('click', restaurarTodasHoras);
+function renderResourceGroups(resources, isSub){
+  var byTipo = {};
+  resources.forEach(function(r){ (byTipo[r.tipo] = byTipo[r.tipo]||[]).push(r); });
+  var tipos = Object.keys(byTipo).sort(function(a,b){ return (ORDEM_TIPO[a]!==undefined?ORDEM_TIPO[a]:9) - (ORDEM_TIPO[b]!==undefined?ORDEM_TIPO[b]:9); });
+  var html = '';
+  tipos.forEach(function(t, ti){
+    if(ti>0) html += '<div class="type-sep"></div>';
+    html += '<div class="node-tipo'+(isSub?' indent-sub':'')+'">'+esc(t)+'</div>';
+    byTipo[t].forEach(function(r){
+      html += '<div class="node-recurso'+(isSub?' indent-sub':'')+'">'+
+        '<span class="recurso-desc">'+esc(r.descricao)+'</span>'+
+        '<span class="recurso-num">'+esc(r.unidade||'')+'</span>'+
+        '<span class="recurso-num">'+(r.qtd!==null?fmt(r.qtd):'-')+'</span>'+
+        '<span class="recurso-num">'+(r.consumoUnd!==null?fmt(r.consumoUnd,6):'-')+'</span>'+
+      '</div>';
+    });
+  });
+  return html || '<div style="padding:6px 12px 6px 76px;color:#999;font-size:12px;">Sem recursos.</div>';
+}
+document.getElementById('btnExpandAll').addEventListener('click', function(){
+  Object.keys(STATE.expandido).forEach(function(k){ STATE.expandido[k]=true; });
+  renderTree(getFilteredModel());
+});
+document.getElementById('btnCollapseAll').addEventListener('click', function(){
+  Object.keys(STATE.expandido).forEach(function(k){ STATE.expandido[k]=false; });
+  renderTree(getFilteredModel());
+});
+
+/* ============================================================
+   RENDER: TABELA
+   ============================================================ */
+function flatRows(model){
+  var out = [];
+  model.forEach(function(o){
+    o.atividades.forEach(function(a){
+      if(a.temSub){
+        a.subatividades.forEach(function(s){
+          s.resources.forEach(function(r){
+            out.push({obra:o.nome, atividade:a.nome, subatividade:s.nome, producaoCalculada:s.producaoCalculada, unidadeComp:s.unidade, producaoPorHora:s.producaoPorHora, horas:s.horas, coeficiente:s.coeficiente, recurso:r});
+          });
+        });
+      } else {
+        a.resources.forEach(function(r){
+          out.push({obra:o.nome, atividade:a.nome, subatividade:'', producaoCalculada:a.producaoCalculada, unidadeComp:a.unidade, producaoPorHora:a.producaoPorHora, horas:a.horas, coeficiente:a.coeficiente, recurso:r});
+        });
+      }
+    });
+  });
+  return out;
+}
+function renderTable(model){
+  var rows = flatRows(model);
+  document.getElementById('compTableBody').innerHTML = rows.map(function(r){
+    return '<tr>'+
+      '<td class="left">'+esc(r.obra)+'</td>'+
+      '<td class="left">'+esc(r.atividade)+'</td>'+
+      '<td class="left">'+esc(r.subatividade||'-')+'</td>'+
+      '<td>'+fmt(r.producaoCalculada)+' '+esc(r.unidadeComp||'')+'</td>'+
+      '<td class="left">'+esc(r.recurso.descricao)+'</td>'+
+      '<td>'+esc(r.recurso.tipo)+'</td>'+
+      '<td>'+esc(r.recurso.unidade||'')+'</td>'+
+      '<td>'+(r.recurso.qtd!==null?fmt(r.recurso.qtd):'-')+'</td>'+
+      '<td>'+(r.recurso.consumoUnd!==null?fmt(r.recurso.consumoUnd,6):'-')+'</td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="9" style="color:#999;">Nenhum recurso encontrado.</td></tr>';
+
+  var leaves = leafNodes(model);
+  var resumoTexto = leaves.length+' atividade(s)/subatividade(s) • '+rows.length+' recurso(s)';
+  var resumo1 = document.getElementById('resumoFiltro');
+  if(resumo1) resumo1.textContent = resumoTexto;
+  var resumo2 = document.getElementById('resumoFiltroTabela');
+  if(resumo2) resumo2.textContent = resumoTexto;
+}
+
+/* ============================================================
+   RENDER: GRAFICOS
+   ============================================================ */
+function destroyChart(key){ if(CHARTS[key]){ CHARTS[key].destroy(); CHARTS[key]=null; } }
+function renderCharts(model){
+  if(typeof Chart === 'undefined') return; // biblioteca de gráficos indisponível (ex.: sem internet)
+  var leaves = leafNodes(model);
+  var labels = leaves.map(function(l){ return l.subatividade ? (l.atividade+' / '+l.subatividade) : l.atividade; });
+
+  destroyChart('producao');
+  CHARTS.producao = new Chart(document.getElementById('chartProducao'), {
+    type:'bar',
+    data:{ labels:labels, datasets:[{ label:'Produção calculada', data: leaves.map(function(l){return l.producaoCalculada;}), backgroundColor:'#f4791f' }] },
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{x:{ticks:{autoSkip:false,maxRotation:60,minRotation:20}}} }
+  });
+
+  destroyChart('hora');
+  CHARTS.hora = new Chart(document.getElementById('chartHora'), {
+    type:'bar',
+    data:{ labels:labels, datasets:[{ label:'Produção por hora', data: leaves.map(function(l){return l.producaoPorHora;}), backgroundColor:'#111111' }] },
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{x:{ticks:{autoSkip:false,maxRotation:60,minRotation:20}}} }
+  });
+
+  var rows = flatRows(model);
+  var porTipo = {};
+  rows.forEach(function(r){ porTipo[r.recurso.tipo] = (porTipo[r.recurso.tipo]||0)+1; });
+  destroyChart('tipo');
+  CHARTS.tipo = new Chart(document.getElementById('chartTipo'), {
+    type:'doughnut',
+    data:{ labels:Object.keys(porTipo), datasets:[{ data:Object.values(porTipo), backgroundColor:['#111111','#7a7a7a','#f4791f','#d8630f'] }] },
+    options:{ responsive:true }
+  });
+
+  destroyChart('horas');
+  CHARTS.horas = new Chart(document.getElementById('chartHoras'), {
+    type:'bar',
+    data:{ labels:labels, datasets:[{ label:'Horas trabalhadas', data: leaves.map(function(l){return l.horas;}), backgroundColor:'#7a7a7a' }] },
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{x:{ticks:{autoSkip:false,maxRotation:60,minRotation:20}}} }
+  });
+}
+
+/* ============================================================
+   RENDER: CUSTOS
+   ============================================================ */
+function renderCustos(model){
+  var rows = flatRows(model);
+  var chartsOk = typeof Chart !== 'undefined';
+  var totalGeral = 0, porAtiv = {}, porTipo = {};
+  rows.forEach(function(r){
+    var custo = (r.recurso.custoUnitario!==null) ? r.recurso.custoUnitario : null;
+    var qtdRef = 1; // custo unitário já é por unidade da composição quando derivado de consumo
+    var custoTotal = custo!==null ? custo : null;
+    r._custoTotal = custoTotal;
+    if(custoTotal!==null){
+      totalGeral += custoTotal;
+      var chaveAtiv = r.atividade + (r.subatividade?(' / '+r.subatividade):'');
+      porAtiv[chaveAtiv] = (porAtiv[chaveAtiv]||0) + custoTotal;
+      porTipo[r.recurso.tipo] = (porTipo[r.recurso.tipo]||0) + custoTotal;
+    }
+  });
+
+  document.getElementById('costCards').innerHTML =
+    '<div class="kpi-card"><div class="kpi-icon">💰</div><div><div class="kpi-label">Custo total (composição filtrada)</div>'+
+    '<div class="kpi-value">R$ '+fmt(totalGeral)+'</div></div></div>'+
+    '<div class="kpi-card"><div class="kpi-icon">🧾</div><div><div class="kpi-label">Recursos com custo informado</div>'+
+    '<div class="kpi-value">'+rows.filter(function(r){return r.recurso.custoUnitario!==null;}).length+' / '+rows.length+'</div></div></div>';
+
+  if(chartsOk){
+    destroyChart('custoAtiv');
+    CHARTS.custoAtiv = new Chart(document.getElementById('chartCustoAtiv'), {
+      type:'bar',
+      data:{ labels:Object.keys(porAtiv), datasets:[{label:'Custo total', data:Object.values(porAtiv), backgroundColor:'#f4791f'}] },
+      options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}} }
+    });
+    destroyChart('custoTipo');
+    CHARTS.custoTipo = new Chart(document.getElementById('chartCustoTipo'), {
+      type:'pie',
+      data:{ labels:Object.keys(porTipo), datasets:[{data:Object.values(porTipo), backgroundColor:['#111111','#7a7a7a','#f4791f','#d8630f']}] },
+      options:{ responsive:true }
+    });
+  }
+
+  document.getElementById('costTableBody').innerHTML = rows.map(function(r){
+    return '<tr>'+
+      '<td class="left">'+esc(r.obra)+'</td><td class="left">'+esc(r.atividade)+'</td><td class="left">'+esc(r.subatividade||'-')+'</td>'+
+      '<td class="left">'+esc(r.recurso.descricao)+'</td><td>'+esc(r.recurso.tipo)+'</td>'+
+      '<td>'+(r.recurso.qtd!==null?fmt(r.recurso.qtd):'-')+'</td>'+
+      '<td>'+(r.recurso.consumoUnd!==null?fmt(r.recurso.consumoUnd,6):'-')+'</td>'+
+      '<td>'+(r.recurso.precoUnitario!==null?fmt(r.recurso.precoUnitario):'-')+'</td>'+
+      '<td>'+(r.recurso.custoUnitario!==null?fmt(r.recurso.custoUnitario):'-')+'</td>'+
+      '<td>'+(r._custoTotal!==null?fmt(r._custoTotal):'-')+'</td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="10" style="color:#999;">Sem dados de custo.</td></tr>';
+}
+
+/* ============================================================
+   RENDER ALL
+   ============================================================ */
+function renderAll(){
+  var model = getFilteredModel();
+  renderCards(model);
+  renderTree(model);
+  renderTable(model);
+  renderCharts(model);
+  renderCustos(model);
+}
+
+/* ============================================================
+   TABS
+   ============================================================ */
+document.querySelectorAll('.tab-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    var tab = btn.getAttribute('data-tab');
+    document.querySelectorAll('.tab-panel').forEach(function(p){
+      p.classList.toggle('hidden', p.getAttribute('data-panel')!==tab);
+    });
+  });
+});
+
+/* ============================================================
+   MODO CANTEIRO (visualização simplificada para impressão)
+   ============================================================ */
+var expandidoAntesCanteiro = null;
+function entrarModoCanteiro(){
+  expandidoAntesCanteiro = JSON.parse(JSON.stringify(STATE.expandido));
+  STATE.obras.forEach(function(o, oi){
+    o.atividades.forEach(function(a, ai){
+      STATE.expandido['obra_'+oi+'_a'+ai] = true;
+    });
+  });
+  document.body.classList.add('modo-canteiro');
+  document.getElementById('modoCanteiroBar').classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelector('.tab-btn[data-tab="composicao"]').classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(function(p){
+    p.classList.toggle('hidden', p.getAttribute('data-panel')!=='composicao');
+  });
+  renderTree(getFilteredModel());
+}
+function sairModoCanteiro(){
+  if(expandidoAntesCanteiro){ STATE.expandido = expandidoAntesCanteiro; expandidoAntesCanteiro = null; }
+  document.body.classList.remove('modo-canteiro');
+  document.getElementById('modoCanteiroBar').classList.add('hidden');
+  renderTree(getFilteredModel());
+}
+document.getElementById('btnModoCanteiro').addEventListener('click', entrarModoCanteiro);
+document.getElementById('btnSairModoCanteiro').addEventListener('click', sairModoCanteiro);
+document.getElementById('btnImprimirCanteiro').addEventListener('click', function(){ window.print(); });
+
+/* ============================================================
+   EXPORTAÇÃO EXCEL
+   ============================================================ */
+document.getElementById('btnExportExcel').addEventListener('click', function(){
+  if(typeof XLSX === 'undefined'){ alert('Biblioteca de exportação (XLSX) não carregou. Verifique a conexão com a internet.'); return; }
+  var model = getFilteredModel();
+  var rows = flatRows(model);
+  var data = rows.map(function(r){
+    return {
+      'Obra': r.obra, 'Atividade': r.atividade, 'Subatividade': r.subatividade,
+      'Unidade da Composição': r.unidadeComp, 'Produção por Hora': r.producaoPorHora,
+      'Horas Trabalhadas': r.horas, 'Produção Calculada': r.producaoCalculada, 'Coeficiente': r.coeficiente,
+      'Descrição': r.recurso.descricao, 'Tipo': r.recurso.tipo, 'Unidade do Recurso': r.recurso.unidade,
+      'Quantidade': r.recurso.qtd, 'Consumo/Und': r.recurso.consumoUnd,
+      'Preço Unitário': r.recurso.precoUnitario, 'Custo Unitário': r.recurso.custoUnitario
+    };
+  });
+  var ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = Object.keys(data[0]||{}).map(function(){ return {wch:18}; });
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Composição COSAMPA");
+  XLSX.writeFile(wb, "dashboard_composicoes_cosampa.xlsx");
+});
+
+/* ============================================================
+   EXPORTAÇÃO PDF
+   ============================================================ */
+document.getElementById('btnExportPdf').addEventListener('click', function(){
+  if(typeof window.jspdf === 'undefined'){ alert('Biblioteca de exportação (PDF) não carregou. Verifique a conexão com a internet.'); return; }
+  var model = getFilteredModel();
+  var rows = flatRows(model);
+  var { jsPDF } = window.jspdf;
+  var doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+  doc.setFillColor(17,17,17); doc.rect(0,0,297,14,'F');
+  doc.setFillColor(244,121,31); doc.rect(0,14,297,1.5,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(13);
+  doc.text('COSAMPA - Dashboard de Composições', 8, 9.5);
+
+  var body = rows.map(function(r){
+    return [r.obra, r.atividade, r.subatividade||'-', (r.producaoCalculada!==null?fmt(r.producaoCalculada):'-')+' '+(r.unidadeComp||''),
+      r.recurso.descricao, r.recurso.tipo, r.recurso.unidade||'', r.recurso.qtd!==null?fmt(r.recurso.qtd):'-', r.recurso.consumoUnd!==null?fmt(r.recurso.consumoUnd,6):'-'];
+  });
+  doc.autoTable({
+    head:[['Obra','Atividade','Subatividade','Produção calculada','Descrição','Tipo','Unid.','Qtd.','Consumo/Und']],
+    body: body,
+    startY: 20,
+    styles:{ font:'helvetica', fontSize:7.5, cellPadding:1.5, overflow:'linebreak' },
+    headStyles:{ fillColor:[17,17,17], textColor:255 },
+    alternateRowStyles:{ fillColor:[250,250,250] },
+    didParseCell: function(data){
+      if(data.section==='body'){
+        var r = rows[data.row.index];
+        if(r && r.subatividade) data.cell.styles.fillColor = [255,241,226];
+      }
+    },
+    margin:{left:8,right:8},
+    theme:'grid'
+  });
+  doc.save('dashboard_composicoes_cosampa.pdf');
+});
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function esc(s){
+  if(s===undefined||s===null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ============================================================
+   INICIALIZAÇÃO
+   ============================================================ */
+carregarPlanilhaPadrao();
+// Atualização automática em segundo plano: a cada 5 minutos, enquanto a aba
+// estiver aberta, o app confere se a planilha mudou — sem interromper o que
+// a pessoa está vendo (filtros e itens expandidos são mantidos).
+var INTERVALO_ATUALIZACAO_AUTOMATICA_MS = 5 * 60 * 1000;
+setInterval(function(){
+  carregarPlanilhaPadrao(false, true);
+}, INTERVALO_ATUALIZACAO_AUTOMATICA_MS);
+// Também atualiza quando a pessoa volta para a aba depois de um tempo fora
+// (ex: trocou de aba, minimizou, voltou de outro app).
+var ultimaChecagemVisibilidade = Date.now();
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible'){
+    var agora = Date.now();
+    if(agora - ultimaChecagemVisibilidade > INTERVALO_ATUALIZACAO_AUTOMATICA_MS){
+      carregarPlanilhaPadrao(false, true);
+    }
+    ultimaChecagemVisibilidade = agora;
+  }
+});
+</script>
+</body>
+</html>
