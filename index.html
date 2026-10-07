@@ -449,12 +449,76 @@ function normalize(s){
   return String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").trim().toLowerCase();
 }
 function isNum(v){ return v!==undefined && v!==null && v!=="" && !isNaN(parseFloat(String(v).replace(",","."))); }
+// Parser de CSV próprio: respeita campos entre aspas que contêm vírgulas
+// (ex.: "25,0") e preserva o texto exatamente como veio da planilha, sem
+// deixar nenhuma biblioteca "adivinhar" e converter sozinha o valor para
+// número (o que já causou leitura errada de células como "25,0" -> 250).
+function parseCsvTexto(texto){
+  var linhas = [];
+  var linhaAtual = [];
+  var campo = '';
+  var dentroAspas = false;
+  var i = 0, len = texto.length;
+  function fimDeCampo(){ linhaAtual.push(campo); campo = ''; }
+  function fimDeLinha(){
+    fimDeCampo();
+    linhas.push(linhaAtual);
+    linhaAtual = [];
+  }
+  while(i < len){
+    var c = texto.charAt(i);
+    if(dentroAspas){
+      if(c === '"'){
+        if(texto.charAt(i+1) === '"'){ campo += '"'; i += 2; continue; }
+        dentroAspas = false; i++; continue;
+      }
+      campo += c; i++; continue;
+    } else {
+      if(c === '"'){ dentroAspas = true; i++; continue; }
+      if(c === ','){ fimDeCampo(); i++; continue; }
+      if(c === '\r'){ i++; continue; }
+      if(c === '\n'){ fimDeLinha(); i++; continue; }
+      campo += c; i++; continue;
+    }
+  }
+  // última linha (se o texto não terminar com quebra de linha)
+  if(campo !== '' || linhaAtual.length > 0){ fimDeLinha(); }
+  // remove linhas totalmente vazias no final do arquivo
+  while(linhas.length && linhas[linhas.length-1].length===1 && linhas[linhas.length-1][0]===''){ linhas.pop(); }
+  return linhas;
+}
 function toNum(v){
   if(v===undefined||v===null||v==="") return null;
   if(typeof v === "number") return v;
-  var s = String(v).trim().replace(/\./g,"").replace(",",".");
-  // fallback if it was already a normal decimal with dot and no thousand sep
-  if(isNaN(parseFloat(s))){ s = String(v).trim().replace(",", "."); }
+  var s = String(v).trim();
+  if(s==="") return null;
+  var temVirgula = s.indexOf(',') !== -1;
+  var temPonto = s.indexOf('.') !== -1;
+  if(temVirgula && temPonto){
+    // tem os dois separadores: o que aparece por último é o decimal, o outro é milhar
+    // ex: "1.350,5" (decimal=vírgula) ou "1,350.5" (decimal=ponto)
+    if(s.lastIndexOf(',') > s.lastIndexOf('.')){
+      s = s.replace(/\./g,'').replace(',', '.');
+    } else {
+      s = s.replace(/,/g,'');
+    }
+  } else if(temVirgula){
+    // só vírgula: padrão brasileiro, é o separador decimal
+    s = s.replace(',', '.');
+  } else if(temPonto){
+    // só ponto: pode ser decimal ("25.0") ou separador de milhar ("1.350").
+    // Separador de milhar brasileiro SEMPRE agrupa em blocos de exatamente 3
+    // dígitos; então um único ponto seguido de 1 ou 2 dígitos só pode ser
+    // decimal (ex: "25.0", "0.08"). Mais de um ponto, ou exatamente 3 dígitos
+    // após o último ponto sem nenhuma vírgula, é tratado como milhar (ex:
+    // "1.350" = 1350), mantendo o comportamento já esperado para a planilha.
+    var partes = s.split('.');
+    var ultimaParte = partes[partes.length-1];
+    if(partes.length>2 || ultimaParte.length===3){
+      s = s.replace(/\./g,'');
+    }
+    // senão (1 ponto, 1 ou 2 dígitos depois): mantém como decimal nativo do JS
+  }
   var n = parseFloat(s);
   return isNaN(n) ? null : n;
 }
@@ -771,9 +835,7 @@ function carregarPlanilhaPadrao(manual, silenciosa){
     return r.text();
   }).then(function(csv){
     if(/^\s*<(!doctype|html)/i.test(csv)){ throw new Error('resposta em HTML, não CSV'); }
-    var wb = XLSX.read(csv, {type:'string'});
-    var ws = wb.Sheets[wb.SheetNames[0]];
-    var rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
+    var rows = parseCsvTexto(csv);
     salvarCachePlanilha(rows);
     aplicarDadosCarregados(rows, 'online', new Date().toLocaleString('pt-BR'), silenciosa);
     if(manual) setBotaoAtualizarEstado('sucesso');
@@ -849,7 +911,6 @@ document.getElementById('btnAtualizarPlanilha').addEventListener('click', functi
   carregarPlanilhaPadrao(true);
 });
 document.getElementById('btnGoogleSheets').addEventListener('click', function(){
-  if(typeof XLSX === 'undefined'){ alert('Biblioteca de importação (XLSX) não carregou. Verifique a conexão com a internet e tente novamente.'); return; }
   var url = prompt("Cole o link da planilha Google Sheets publicada\n(pode ser o link de Publicar na web em HTML ou CSV, ou o link normal de compartilhamento):");
   if(!url) return;
   var csvUrl = googleSheetsUrlParaCsv(url);
@@ -860,9 +921,7 @@ document.getElementById('btnGoogleSheets').addEventListener('click', function(){
     if(/^\s*<(!doctype|html)/i.test(csv)){
       throw new Error('O link retornou uma página HTML em vez de dados da planilha. Confirme em Arquivo > Compartilhar > Publicar na Web, escolhendo o formato CSV (não HTML), ou deixe que o app converta automaticamente o link publicado.');
     }
-    var wb = XLSX.read(csv, {type:'string'});
-    var ws = wb.Sheets[wb.SheetNames[0]];
-    var rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
+    var rows = parseCsvTexto(csv);
     salvarCachePlanilha(rows);
     var parsed = parseSheetRows(rows);
     STATE.obras = parsed.obras; STATE.importStats = parsed.stats;
@@ -1391,6 +1450,42 @@ function flatRows(model){
   });
   return out;
 }
+// Igual a flatRows, mas respeita o que está expandido/recolhido na árvore agora
+// (usado na exportação de PDF a partir da aba "Composição"): usa os mesmos
+// ids obra_X / obra_X_aY / obra_X_aY_sZ que renderTree usa para abrir/fechar,
+// então precisa receber o MESMO model (já filtrado) que está em tela.
+function flatRowsExpandidos(model){
+  var out = [];
+  model.forEach(function(o, oi){
+    var obraId = 'obra_'+oi;
+    var obraOpen = STATE.expandido[obraId] !== false; // padrão: aberto
+    if(!obraOpen) return;
+    o.atividades.forEach(function(a, ai){
+      var ativId = obraId+'_a'+ai;
+      var ativOpen = STATE.expandido[ativId] !== false;
+      if(!ativOpen) return;
+      if(a.temSub){
+        a.subatividades.forEach(function(s, si){
+          var subId = ativId+'_s'+si;
+          var subOpen = STATE.expandido[subId] !== false;
+          if(!subOpen) return;
+          s.resources.forEach(function(r){
+            out.push({obra:o.nome, atividade:a.nome, subatividade:s.nome, producaoCalculada:s.producaoCalculada, unidadeComp:s.unidade, producaoPorHora:s.producaoPorHora, horas:s.horas, coeficiente:s.coeficiente, recurso:r});
+          });
+        });
+      } else {
+        a.resources.forEach(function(r){
+          out.push({obra:o.nome, atividade:a.nome, subatividade:'', producaoCalculada:a.producaoCalculada, unidadeComp:a.unidade, producaoPorHora:a.producaoPorHora, horas:a.horas, coeficiente:a.coeficiente, recurso:r});
+        });
+      }
+    });
+  });
+  return out;
+}
+function abaAtivaAtual(){
+  var btn = document.querySelector('.tab-btn.active');
+  return btn ? btn.getAttribute('data-tab') : 'composicao';
+}
 function renderTable(model){
   var rows = flatRows(model);
   document.getElementById('compTableBody').innerHTML = rows.map(function(r){
@@ -1593,17 +1688,17 @@ document.getElementById('btnExportExcel').addEventListener('click', function(){
 /* ============================================================
    EXPORTAÇÃO PDF
    ============================================================ */
-document.getElementById('btnExportPdf').addEventListener('click', function(){
-  if(typeof window.jspdf === 'undefined'){ alert('Biblioteca de exportação (PDF) não carregou. Verifique a conexão com a internet.'); return; }
-  var model = getFilteredModel();
-  var rows = flatRows(model);
-  var { jsPDF } = window.jspdf;
-  var doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+function pdfCabecalho(doc, subtitulo){
   doc.setFillColor(17,17,17); doc.rect(0,0,297,14,'F');
   doc.setFillColor(244,121,31); doc.rect(0,14,297,1.5,'F');
   doc.setTextColor(255,255,255); doc.setFontSize(13);
   doc.text('COSAMPA - Dashboard de Composições', 8, 9.5);
-
+  if(subtitulo){
+    doc.setFontSize(9);
+    doc.text(subtitulo, 289, 9.5, {align:'right'});
+  }
+}
+function pdfTabelaComposicao(doc, rows, startY){
   var body = rows.map(function(r){
     return [r.obra, r.atividade, r.subatividade||'-', (r.producaoCalculada!==null?fmt(r.producaoCalculada):'-')+' '+(r.unidadeComp||''),
       r.recurso.descricao, r.recurso.tipo, r.recurso.unidade||'', r.recurso.qtd!==null?fmt(r.recurso.qtd):'-', r.recurso.consumoUnd!==null?fmt(r.recurso.consumoUnd,6):'-'];
@@ -1611,7 +1706,7 @@ document.getElementById('btnExportPdf').addEventListener('click', function(){
   doc.autoTable({
     head:[['Obra','Atividade','Subatividade','Produção calculada','Descrição','Tipo','Unid.','Qtd.','Consumo/Und']],
     body: body,
-    startY: 20,
+    startY: startY,
     styles:{ font:'helvetica', fontSize:7.5, cellPadding:1.5, overflow:'linebreak' },
     headStyles:{ fillColor:[17,17,17], textColor:255 },
     alternateRowStyles:{ fillColor:[250,250,250] },
@@ -1624,7 +1719,209 @@ document.getElementById('btnExportPdf').addEventListener('click', function(){
     margin:{left:8,right:8},
     theme:'grid'
   });
-  doc.save('dashboard_composicoes_cosampa.pdf');
+}
+/* ============================================================
+   PDF EM FORMATO ÁRVORE (igual à visualização da aba Composição)
+   ============================================================ */
+var PDF_MARGEM_L = 8, PDF_MARGEM_R = 8, PDF_LARGURA = 297, PDF_ALTURA = 210;
+var PDF_COL_DIREITA = PDF_LARGURA - PDF_MARGEM_R;
+function pdfArvoreCabecalhoColunas(doc, y){
+  doc.setFillColor(238,238,238);
+  doc.rect(PDF_MARGEM_L, y, PDF_COL_DIREITA-PDF_MARGEM_L, 5, 'F');
+  doc.setTextColor(90,90,90); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+  doc.text('DESCRIÇÃO', PDF_MARGEM_L+2.5, y+3.5);
+  doc.text('UNID.', PDF_COL_DIREITA-78, y+3.5);
+  doc.text('QTD.', PDF_COL_DIREITA-48, y+3.5, {align:'right'});
+  doc.text('CONSUMO/UND', PDF_COL_DIREITA-2, y+3.5, {align:'right'});
+  return y+5;
+}
+function pdfArvoreQuebraPagina(doc, y, alturaNecessaria){
+  if(y + alturaNecessaria > PDF_ALTURA - 10){
+    doc.addPage();
+    pdfCabecalho(doc, 'Composição — apenas itens expandidos na tela (continuação)');
+    return pdfArvoreCabecalhoColunas(doc, 20);
+  }
+  return y;
+}
+function pdfArvoreLinhaObra(doc, y, nome){
+  doc.setFillColor(17,17,17);
+  doc.rect(PDF_MARGEM_L, y, PDF_COL_DIREITA-PDF_MARGEM_L, 7, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
+  doc.text(nome, PDF_MARGEM_L+2.5, y+4.8);
+  return y+7;
+}
+function pdfArvoreLinhaAtividade(doc, y, nome){
+  doc.setFillColor(58,58,58);
+  doc.rect(PDF_MARGEM_L, y, PDF_COL_DIREITA-PDF_MARGEM_L, 6.2, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+  doc.text(nome, PDF_MARGEM_L+5, y+4.3, {maxWidth: PDF_COL_DIREITA-PDF_MARGEM_L-70});
+  return y+6.2;
+}
+function pdfArvoreLinhaSubAtividade(doc, y, nome, horas, producao, unidade, ambiguo){
+  doc.setFillColor(255,241,226);
+  doc.rect(PDF_MARGEM_L, y, PDF_COL_DIREITA-PDF_MARGEM_L, 6.2, 'F');
+  // badge SP
+  doc.setFillColor(ambiguo?255:244, ambiguo?207:121, ambiguo?92:31);
+  doc.roundedRect(PDF_MARGEM_L+8, y+1.3, 7, 3.6, 1, 1, 'F');
+  doc.setTextColor(ambiguo?91:255, ambiguo?52:255, ambiguo?16:255); doc.setFont('helvetica','bold'); doc.setFontSize(5.5);
+  doc.text('SP', PDF_MARGEM_L+11.5, y+3.9, {align:'center'});
+  doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.text(nome, PDF_MARGEM_L+17, y+4.3, {maxWidth: PDF_COL_DIREITA-PDF_MARGEM_L-120});
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  doc.text('Horas: '+(horas!==null&&horas!==undefined?fmt(horas,2):'-'), PDF_COL_DIREITA-68, y+4.3);
+  doc.text('Prod. calc.: '+fmt(producao)+' '+(unidade||''), PDF_COL_DIREITA-2, y+4.3, {align:'right'});
+  return y+6.2;
+}
+function pdfArvoreLinhaAtividadeSemSub(doc, y, horas, producao, unidade){
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  doc.text('Horas: '+(horas!==null&&horas!==undefined?fmt(horas,2):'-'), PDF_COL_DIREITA-68, y-2.2);
+  doc.text('Prod. calc.: '+fmt(producao)+' '+(unidade||''), PDF_COL_DIREITA-2, y-2.2, {align:'right'});
+  return y;
+}
+function pdfArvoreLinhaGrupoRecurso(doc, y, nomeGrupo, indent){
+  doc.setFillColor(238,238,238);
+  doc.rect(PDF_MARGEM_L, y, PDF_COL_DIREITA-PDF_MARGEM_L, 5, 'F');
+  doc.setTextColor(90,90,90); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+  doc.text(nomeGrupo.toUpperCase(), PDF_MARGEM_L+indent, y+3.5);
+  return y+5;
+}
+function pdfArvoreLinhaRecurso(doc, y, descricao, unidade, qtd, consumo, indent, zebra){
+  if(zebra){ doc.setFillColor(250,250,250); doc.rect(PDF_MARGEM_L, y, PDF_COL_DIREITA-PDF_MARGEM_L, 5, 'F'); }
+  doc.setTextColor(40,40,40); doc.setFont('helvetica','normal'); doc.setFontSize(7.3);
+  doc.text(descricao, PDF_MARGEM_L+indent, y+3.5, {maxWidth: PDF_COL_DIREITA-PDF_MARGEM_L-indent-90});
+  doc.text(unidade||'', PDF_COL_DIREITA-78, y+3.5);
+  doc.text(qtd!==null?fmt(qtd):'-', PDF_COL_DIREITA-48, y+3.5, {align:'right'});
+  doc.text(consumo!==null?fmt(consumo,6):'-', PDF_COL_DIREITA-2, y+3.5, {align:'right'});
+  return y+5;
+}
+function pdfArvoreGrupoRecursos(doc, y, resources, indentGrupo, indentRecurso){
+  var byTipo = {};
+  resources.forEach(function(r){ (byTipo[r.tipo] = byTipo[r.tipo]||[]).push(r); });
+  var tipos = Object.keys(byTipo).sort(function(a,b){ return (ORDEM_TIPO[a]!==undefined?ORDEM_TIPO[a]:9) - (ORDEM_TIPO[b]!==undefined?ORDEM_TIPO[b]:9); });
+  if(tipos.length===0){
+    y = pdfArvoreQuebraPagina(doc, y, 5);
+    doc.setTextColor(153,153,153); doc.setFont('helvetica','italic'); doc.setFontSize(7);
+    doc.text('Sem recursos.', PDF_MARGEM_L+indentRecurso, y+3.5);
+    return y+5;
+  }
+  tipos.forEach(function(t){
+    y = pdfArvoreQuebraPagina(doc, y, 5);
+    y = pdfArvoreLinhaGrupoRecurso(doc, y, t, indentGrupo);
+    byTipo[t].forEach(function(r, ri){
+      y = pdfArvoreQuebraPagina(doc, y, 5);
+      y = pdfArvoreLinhaRecurso(doc, y, r.descricao, r.unidade, r.qtd, r.consumoUnd, indentRecurso, ri%2===1);
+    });
+  });
+  return y;
+}
+function exportarPdfComposicao(doc, model){
+  pdfCabecalho(doc, 'Composição — apenas itens expandidos na tela');
+  var y = pdfArvoreCabecalhoColunas(doc, 20);
+  var algoExpandido = false;
+  model.forEach(function(o, oi){
+    var obraId = 'obra_'+oi;
+    var obraOpen = STATE.expandido[obraId] !== false;
+    if(!obraOpen) return;
+    y = pdfArvoreQuebraPagina(doc, y, 7);
+    y = pdfArvoreLinhaObra(doc, y, '🏗 '+o.nome);
+    o.atividades.forEach(function(a, ai){
+      var ativId = obraId+'_a'+ai;
+      var ativOpen = STATE.expandido[ativId] !== false;
+      y = pdfArvoreQuebraPagina(doc, y, 6.2);
+      y = pdfArvoreLinhaAtividade(doc, y, a.nome);
+      if(!a.temSub){
+        pdfArvoreLinhaAtividadeSemSub(doc, y, a.horas, a.producaoCalculada, a.unidade);
+      }
+      if(!ativOpen) return;
+      algoExpandido = true;
+      if(a.temSub){
+        a.subatividades.forEach(function(s, si){
+          var subId = ativId+'_s'+si;
+          var subOpen = STATE.expandido[subId] !== false;
+          y = pdfArvoreQuebraPagina(doc, y, 6.2);
+          y = pdfArvoreLinhaSubAtividade(doc, y, s.nome, s.horas, s.producaoCalculada, s.unidade, !!s.marcadorAmbiguo);
+          if(subOpen){
+            y = pdfArvoreGrupoRecursos(doc, y, s.resources, 14, 20);
+          }
+        });
+      } else {
+        y = pdfArvoreGrupoRecursos(doc, y, a.resources, 9, 14);
+      }
+    });
+  });
+  if(!algoExpandido){
+    doc.setTextColor(120,120,120); doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text('Nenhuma atividade expandida no momento. Expanda as atividades/subatividades que deseja incluir no PDF e tente novamente.', 8, y+8);
+  }
+  doc.save('dashboard_composicao_expandida_cosampa.pdf');
+}
+function exportarPdfTabela(doc, model){
+  var rows = flatRows(model);
+  pdfCabecalho(doc, 'Tabela de composição — todos os recursos');
+  pdfTabelaComposicao(doc, rows, 20);
+  doc.save('dashboard_tabela_composicao_cosampa.pdf');
+}
+function pdfAdicionarGraficoCanvas(doc, canvasId, x, y, largura, altura, legenda){
+  var canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  try{
+    var dataUrl = canvas.toDataURL('image/png', 1.0);
+    if(legenda){ doc.setTextColor(60,60,60); doc.setFontSize(9); doc.text(legenda, x, y-2); }
+    doc.addImage(dataUrl, 'PNG', x, y, largura, altura);
+  }catch(e){ console.warn('Não foi possível exportar o gráfico '+canvasId+' para o PDF:', e); }
+}
+function exportarPdfGraficos(doc, model){
+  pdfCabecalho(doc, 'Gráficos — composição filtrada');
+  var largura = 136, altura = 80;
+  pdfAdicionarGraficoCanvas(doc, 'chartProducao', 8, 26, largura, altura, 'Produção calculada por atividade/subatividade');
+  pdfAdicionarGraficoCanvas(doc, 'chartHora', 153, 26, largura, altura, 'Produção por hora (comparativo)');
+  pdfAdicionarGraficoCanvas(doc, 'chartTipo', 8, 115, largura, altura, 'Quantidade de recursos por tipo');
+  pdfAdicionarGraficoCanvas(doc, 'chartHoras', 153, 115, largura, altura, 'Horas trabalhadas por atividade');
+  doc.save('dashboard_graficos_cosampa.pdf');
+}
+function exportarPdfCustos(doc, model){
+  var rows = flatRows(model);
+  var totalGeral = 0;
+  rows.forEach(function(r){
+    if(r.recurso.custoUnitario!==null) totalGeral += r.recurso.custoUnitario;
+  });
+  pdfCabecalho(doc, 'Análise de custos — composição filtrada');
+  doc.setTextColor(17,17,17); doc.setFontSize(11);
+  doc.text('Custo total (composição filtrada): R$ '+fmt(totalGeral), 8, 22);
+
+  var largura = 136, altura = 70;
+  pdfAdicionarGraficoCanvas(doc, 'chartCustoAtiv', 8, 30, largura, altura, 'Custo total por atividade/subatividade');
+  pdfAdicionarGraficoCanvas(doc, 'chartCustoTipo', 153, 30, largura, altura, 'Custo por tipo de recurso');
+
+  var body = rows.map(function(r){
+    var custoTotal = r.recurso.custoUnitario!==null ? r.recurso.custoUnitario : null;
+    return [r.obra, r.atividade, r.subatividade||'-', r.recurso.descricao, r.recurso.tipo,
+      r.recurso.qtd!==null?fmt(r.recurso.qtd):'-', r.recurso.consumoUnd!==null?fmt(r.recurso.consumoUnd,6):'-',
+      r.recurso.precoUnitario!==null?fmt(r.recurso.precoUnitario):'-', r.recurso.custoUnitario!==null?fmt(r.recurso.custoUnitario):'-',
+      custoTotal!==null?fmt(custoTotal):'-'];
+  });
+  doc.autoTable({
+    head:[['Obra','Atividade','Subatividade','Descrição','Tipo','Qtd.','Consumo/Und','Preço unit.','Custo unit.','Custo total']],
+    body: body,
+    startY: 108,
+    styles:{ font:'helvetica', fontSize:7, cellPadding:1.3, overflow:'linebreak' },
+    headStyles:{ fillColor:[17,17,17], textColor:255 },
+    alternateRowStyles:{ fillColor:[250,250,250] },
+    margin:{left:8,right:8},
+    theme:'grid'
+  });
+  doc.save('dashboard_custos_cosampa.pdf');
+}
+document.getElementById('btnExportPdf').addEventListener('click', function(){
+  if(typeof window.jspdf === 'undefined'){ alert('Biblioteca de exportação (PDF) não carregou. Verifique a conexão com a internet.'); return; }
+  var model = getFilteredModel();
+  var { jsPDF } = window.jspdf;
+  var doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+  var aba = abaAtivaAtual();
+  if(aba==='tabela') exportarPdfTabela(doc, model);
+  else if(aba==='graficos') exportarPdfGraficos(doc, model);
+  else if(aba==='custos') exportarPdfCustos(doc, model);
+  else exportarPdfComposicao(doc, model); // 'composicao' (padrão)
 });
 
 /* ============================================================
@@ -1661,3 +1958,4 @@ document.addEventListener('visibilitychange', function(){
 </script>
 </body>
 </html>
+
